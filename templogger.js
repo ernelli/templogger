@@ -59,7 +59,7 @@ if(config.showSensors) {
     readSensors(sensors, function(values) {
         
         for(var l in values) {
-            console.log(l + "\t"+ values[l];
+            console.log(l + "\t"+ values[l]);
         }
     }
 } else {

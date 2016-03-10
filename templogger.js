@@ -6,6 +6,14 @@ var config = JSON.parse(fs.readFileSync("./config.json"));
 
 var interval = 10000;
 
+var argv = process.argv.slice(2);
+
+for(var i = 0; i < argv.length; i++) {
+    if(argv[i] === '-s') {
+        config.showSensors = true;
+    }
+}
+
 function nextInterval() {
     var now = Date.now();
     var delay = interval - (now % interval);
@@ -46,60 +54,71 @@ function readSensors(sensors, cb) {
     }
 }
 
-
-(function timerCb() {
-    var timestamp = Date.now();
-    console.log("read sensors: " + new Date(timestamp));
-
+if(config.showSensors) {
+    console.log("Reading all sensors");
     readSensors(sensors, function(values) {
-        if(values) {
-            console.log("sensors: ", values);
-        } else {
-            return;
-        }
-
-        var url = logserver;
-
-        var data = {
-           timestamp: timestamp
-        };
-
-        for(var v in values) {
-            data[v] = values[v];
-        }
-
-        var options = URL.parse(url);
-        options.method = "POST";
-        options.headers = {  "content-type": "application/json"};
-
-        console.log("send data to logserver: " + logserver);
         
-        var req = http.request(options, function(res) {
-            var body = "";
-            if(res.status !== 200) {
-                console.log("failed to send data to logserver: " +  res.status);
+        for(var l in values) {
+            console.log(l + "\t"+ values[l];
+        }
+    }
+} else {
+    // start logging process
+    
+   (function timerCb() {
+        var timestamp = Date.now();
+        console.log("read sensors: " + new Date(timestamp));
+
+        readSensors(sensors, function(values) {
+            if(values) {
+                console.log("sensors: ", values);
             } else {
-                console.log("data submitted, result: " + res);
+                return;
             }
 
-  	    res.on('data', function(chunk) {
-               body += chunk;
-            });
+            var url = logserver;
 
-	    res.on('end', function() {
-               console.log("got response: " + body);
-               var delay = nextInterval();
-               console.log("Wait: " + delay + "ms");
-               setTimeout(timerCb, delay);
+            var data = {
+                timestamp: timestamp
+            };
+
+            for(var v in values) {
+                data[v] = values[v];
+            }
+
+            var options = URL.parse(url);
+            options.method = "POST";
+            options.headers = {  "content-type": "application/json"};
+
+            console.log("send data to logserver: " + logserver);
+            
+            var req = http.request(options, function(res) {
+                var body = "";
+                if(res.status !== 200) {
+                    console.log("failed to send data to logserver: " +  res.status);
+                } else {
+                    console.log("data submitted, result: " + res);
+                }
+
+  	        res.on('data', function(chunk) {
+                    body += chunk;
+                });
+
+	        res.on('end', function() {
+                    console.log("got response: " + body);
+                    var delay = nextInterval();
+                    console.log("Wait: " + delay + "ms");
+                    setTimeout(timerCb, delay);
+                });
+            });
+            
+            req.write(JSON.stringify(data));
+	    req.end();
+
+            req.on('error', function(err) {
+                console.log("Failed to send data to logserver: " + err);
             });
         });
-        
-        req.write(JSON.stringify(data));
-	req.end();
 
-        req.on('error', function(err) {
-            console.log("Failed to send data to logserver: " + err);
-        });
-    });
-
-})();
+    })();
+}

@@ -61,7 +61,7 @@ if(config.showSensors) {
         for(var l in values) {
             console.log(l + "\t"+ values[l]);
         }
-    }
+    });
 } else {
     // start logging process
     

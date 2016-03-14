@@ -8,7 +8,7 @@ var port = 10091;
 
 var app = express();
 
-var currentTemp;
+var currentTemp  = {};
 
 app.use(express.static('public'));
 

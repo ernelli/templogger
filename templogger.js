@@ -98,7 +98,7 @@ if(config.showSensors) {
             
             var req = http.request(options, function(res) {
                 var body = "";
-                if(res.status !== 200) {
+                if(res.statusCode !== 200) {
                     console.log("failed to send data to logserver: " +  res.status);
                 } else {
                     console.log("data submitted, result: " + res);

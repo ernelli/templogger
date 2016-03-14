@@ -16,7 +16,7 @@ define(["partials"], function(partials) {
       xhr.send();
   }
 
-   get("/current", cb(err, data) {
+   get("/current", function(err, data) {
        var values = [];
 
        var div = document.getElementById('content');
@@ -27,10 +27,14 @@ define(["partials"], function(partials) {
        }
 
        for(var v in data) {
-           values.push( { label: v, value: data[v] });
+	   if(v !== "timestamp") {
+               values.push( { label: v, value: data[v]/1000 });
+	   }
        }
+       
+       console.log("render data: ", data);
 
-       div.innerHTML = partials['status.hbar'](data);
+       div.innerHTML = partials( { temp: values });
 
    });
 

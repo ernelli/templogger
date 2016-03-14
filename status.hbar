@@ -1,0 +1,5 @@
+<div>
+  {{#each temp}}
+    <div><span class="label">this.label></span><span class="value">this.value></span></div>
+  {{/each}}
+</div>

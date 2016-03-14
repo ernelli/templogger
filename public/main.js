@@ -1,4 +1,4 @@
-define(function(["partials]"]) {
+define(function(["partials"]) {
   console.log("main loaded");
 
   

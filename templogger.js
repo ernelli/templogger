@@ -55,13 +55,17 @@ function readSensors(sensors, cb) {
 }
 
 if(config.showSensors) {
+
+    (function showSensors() {
     console.log("Reading all sensors");
     readSensors(sensors, function(values) {
-        
+        console.log("timestamp\t" + Date.now());
         for(var l in values) {
             console.log(l + "\t"+ values[l]);
         }
+        setTimeout(showSensors, nextInterval());
     });
+    })();
 } else {
     // start logging process
     

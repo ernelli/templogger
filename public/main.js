@@ -1,4 +1,4 @@
-define(function(["partials"]) {
+define(["partials"], function(partials) {
   console.log("main loaded");
     
   function get(url, cb) {

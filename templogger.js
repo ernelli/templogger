@@ -42,7 +42,7 @@ function readSensors(sensors, cb) {
             } else {
                 //console.log("got sensor data for: " + this.label + ", value: " + data);
                 var val = /t=(\d\d\d\d\d)/.exec(data)[1];
-                temp[this.label] = 1*val;
+                temp[this.label] = 1*val/1000;
             }
 
             res++;

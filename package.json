@@ -1,0 +1,30 @@
+{
+  "name": "templogger",
+  "version": "1.0.0",
+  "description": "Temperature logging application",
+  "main": "tempserver.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ernelli/templogger.git"
+  },
+  "keywords": [
+    "webapp",
+    "temperature",
+    "logging",
+    "monitor"
+  ],
+  "author": "Mattias Ernelli",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ernelli/templogger/issues"
+  },
+  "homepage": "https://github.com/ernelli/templogger#readme",
+  "dependencies": {
+    "handlebars": "^4.0.5",
+    "requirejs": "^2.1.22",
+    "socket.io": "^1.4.5"
+  }
+}

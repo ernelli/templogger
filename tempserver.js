@@ -2,6 +2,8 @@ var express = require('express');
 var bodyParser = require('body-parser')
 var fs = require('fs');
 
+var config = JSON.parse(fs.readFileSync("./config.json"));
+
 var port = 10091;
 
 var app = express();
@@ -15,7 +17,7 @@ app.use(bodyParser.json());
 app.post("/store", function(req, res) {
     //console.log("req.ip: " + req.ip);
 
-    if( (""+req.ip).indexOf("192.168.1.1") === -1 &&  (""+req.ip).indexOf("81.170.140.55") === -1) {
+    if( (""+req.ip).indexOf("192.168.1.1") === -1 &&  (""+req.ip).indexOf(config.allowed) === -1) {
         // silently die
         console.log("ignore request from: " + req.ip);
         return;

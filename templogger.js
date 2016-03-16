@@ -41,7 +41,7 @@ function readSensors(sensors, cb) {
                 temp[this.label] = "[failed]" + err;
             } else {
                 //console.log("got sensor data for: " + this.label + ", value: " + data);
-                var val = /t=(\d\d\d\d\d)/.exec(data)[1];
+                var val = /t=(\d+)/.exec(data)[1];
                 temp[this.label] = 1*val/1000;
             }
 
@@ -99,7 +99,7 @@ if(config.showSensors) {
             var req = http.request(options, function(res) {
                 var body = "";
                 if(res.statusCode !== 200) {
-                    console.log("failed to send data to logserver: " +  res.status);
+                    console.error("failed to send data to logserver: " + url + ", status: " + res.statusCode);
                 } else {
                     console.log("data submitted, result: " + res);
                 }
@@ -120,7 +120,10 @@ if(config.showSensors) {
 	    req.end();
 
             req.on('error', function(err) {
-                console.log("Failed to send data to logserver: " + err);
+                console.error("failed to send data to logserver: " + url + ", err: " + err);
+                var delay = nextInterval();
+                console.log("Wait: " + delay + "ms");
+                setTimeout(timerCb, delay);
             });
         });
 

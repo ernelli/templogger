@@ -28,7 +28,7 @@ define(["partials"], function(partials) {
 
        for(var v in data) {
 	   if(v !== "timestamp") {
-               values.push( { label: v, value: data[v]/1000 });
+               values.push( { label: v, value: data[v] });
 	   }
        }
        

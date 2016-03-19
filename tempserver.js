@@ -10,6 +10,30 @@ var app = express();
 
 var currentTemp  = {};
 
+function currentDate(ts) {
+  var d = new Date(ts);
+
+  return d.getFullYear() + "." + ("00" + (1+d.getMonth())).slice(-2) + "." +  ("00" + (d.getDate())).slice(-2);
+}
+
+function nextDate(ts) {
+  var d = new Date(ts);
+
+
+  d.setMilliseconds(0);
+  d.setSeconds(0);
+  d.setMinutes(0);
+  d.setHours(24);
+
+
+  return d.getTime();
+}
+
+var now = Date.now();
+
+var filename = "temp." + currentDate(Date.now()) + ".log";
+var nextDay = nextDate(now);
+
 app.use(express.static('public'));
 
 app.use(bodyParser.json()); 
@@ -17,7 +41,7 @@ app.use(bodyParser.json());
 app.post("/store", function(req, res) {
     //console.log("req.ip: " + req.ip);
 
-    if( (""+req.ip).indexOf("192.168.1.1") === -1 &&  (""+req.ip).indexOf(config.allowed) === -1) {
+    if( (""+req.ip).indexOf("192.168.1.") === -1 &&  (""+req.ip).indexOf(config.allowed) === -1) {
         // silently die
         console.log("ignore request from: " + req.ip);
         return;
@@ -36,7 +60,14 @@ app.post("/store", function(req, res) {
         }
     }
     
-    fs.appendFile('temp.log', JSON.stringify(data) + "\n");
+    var ts = data.timestamp;
+
+    if(ts > nextDay) {
+        filename = "temp." + currentDate(ts) + ".log";
+        nextDay = nextDate(ts);
+    }
+
+    fs.appendFile(filename, JSON.stringify(data) + "\n");
 
     res.send("OK");
 });

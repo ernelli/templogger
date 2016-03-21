@@ -41,7 +41,7 @@ function readSensors(sensors, cb) {
                 temp[this.label] = "[failed]" + err;
             } else {
                 //console.log("got sensor data for: " + this.label + ", value: " + data);
-                var val = /t=(\d+)/.exec(data)[1];
+                var val = /t=([-\d]+)/.exec(data)[1];
                 temp[this.label] = 1*val/1000;
             }
 

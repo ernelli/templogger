@@ -201,7 +201,7 @@ router.series = function(req,res) {
 };
 
 
-app.get("/series/:fields/:start/:stop/:num?", router.series);
+app.get("/series/:start/:stop/:num?/:fields?", router.series);
 
 // /series/start/stop/num
 /*

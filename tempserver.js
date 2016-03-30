@@ -181,18 +181,32 @@ app.get("/current", function(req,res) {
 //app.use("/series", router);
 
 router.series = function(req,res) {
-    console.log("got series request, start: " + req.params.start);
-    console.log("got series request, stop: " + req.params.stop);
-    console.log("got series request, num: " + req.params.num);
-    res.send("OK");
+/*
+    console.log("got series request, fields: " + req.params.fields);
+    console.log("start: " + req.params.start);
+    console.log("stop: " + req.params.stop);
+    console.log("num: " + req.params.num);
+*/
+    getData(1*req.params.start, 1*req.params.stop, function(err, data) {
+        if(err) {
+            res.send(err);
+            return;
+        }
+
+        console.log("got data, N entries: ", data.length);
+
+        res.send(data);
+    });
+
 };
 
 
-app.get("/series/:start/:stop/:num", router.series);
+app.get("/series/:fields/:start/:stop/:num?", router.series);
 
 // /series/start/stop/num
 /*
 app.get("/series/:start/:stop/:num", function(req, res) {
+
     var start = params[0];
     var stop = params[1];
     var num = params[2];

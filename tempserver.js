@@ -187,17 +187,110 @@ router.series = function(req,res) {
     console.log("stop: " + req.params.stop);
     console.log("num: " + req.params.num);
 */
-    getData(1*req.params.start, 1*req.params.stop, function(err, data) {
-        if(err) {
-            res.send(err);
-            return;
-        }
 
-        console.log("got data, N entries: ", data.length);
 
-        res.send(data);
-    });
+    var start, stop;
 
+    start = 1*req.params.start;
+    stop = 1*req.params.stop;
+
+    if(start && stop ) {
+        getData(start, stop, function(err, data) {
+           
+            if(err) {
+                res.send(err);
+                return;
+            }
+            
+            console.log("got data, N entries: ", data.length);
+            
+            if(req.params.num) {
+                var series = {};
+                var num = req.params.num;
+                
+                var fields;
+
+                var i;
+
+                if(req.params.fields){
+                    fields = req.params.fields.split(",");
+                } else {
+                    var added = false;
+                    for(i = 0; i < data.length; i++) {
+                        for(var f in data[i]) {
+                            if(f !== timestamp) {
+                                if(fields.indexOf(f) === -1) {
+                                    fields.push(f);
+                                    added = true;
+                                }
+                            }
+                        }
+                        if(!added) {
+                            break;
+                        }
+                    }
+                }
+
+                while(fields.length) {
+                    var fieldName = fields.shift();
+                    
+                    var dataIndex = 0;
+                    
+                    var timeStep = (stop - start) / num;
+
+//              o                          o            o
+//    |                     |          |       |                |
+//   t0                     t1         t2     t3                t4
+//   v0                     v1         v2     v3                v4
+
+                    series[fieldName] = [];
+                    var field = series[fieldName];
+
+                    var prevData = 0;
+                    var nextData = -1;
+
+                    while(prevData+1 < data.length && data[prevData+1].timestamp < start) {
+                        prevData++;
+                    }
+
+                    for(i = 0; i < num; i++) {
+                        var t0 = start + i * timeStep | 0;
+                        var t1 = t0 + timeStep;
+                        
+                        while(data[prevData].timestamp > t0 && prevData > 0 ) {
+                            prevData--;
+                        }
+
+                        nextData = prevData;
+
+                        while(data[nextData].timestamp < t1 && nextData > 0 ) {
+                            prevData--;
+                        }
+
+                        
+                    }
+
+
+//                    for(var t = start; t < stop; t += timeStep) {
+//                        value = 0;
+//                    }
+
+                }
+                
+                
+
+
+            
+                    
+
+                
+            }
+            
+            res.send(res);
+        });
+    } else {
+        res.send("Invalid request");
+    }
 };
 
 

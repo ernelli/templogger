@@ -195,6 +195,8 @@ router.series = function(req,res) {
     stop = 1*req.params.stop;
 
     if(start && stop ) {
+        console.log("get data between: " + start + ", and " + stop + ", interval: " + (stop-start) );
+
         getData(start, stop, function(err, data) {
            
             if(err) {
@@ -231,42 +233,50 @@ router.series = function(req,res) {
                     }
                 }
 
+                console.log("get " + num + " values from fields: ", fields);
+
                 while(fields.length) {
                     var fieldName = fields.shift();
                     
-                    var dataIndex = 0;
+                    var fieldData = [];
+                    for(i = 0; i < data.length; i++) {
+                        if(typeof data[i][fieldName] !== "undefined") {
+                            fieldData.push(data[i]);
+                        }
+                    }
                     
                     var timeStep = (stop - start) / num;
 
-//              o                          o            o
-//    |                     |          |       |                |
-//   t0                     t1         t2     t3                t4
-//   v0                     v1         v2     v3                v4
-
+//         o   o   o   o   o   o   o   o                          Average
+//    |           |           |           |           |
+//    t0          t1          t2          t3          t4
+//    v0          v1          v2          v3          v4
+//         *                       *                       *      Interpolate
                     series[fieldName] = [];
                     var field = series[fieldName];
 
                     var prevData = 0;
                     var nextData = -1;
 
-                    while(prevData+1 < data.length && data[prevData+1].timestamp < start) {
-                        prevData++;
-                    }
 
                     for(i = 0; i < num; i++) {
-                        var t0 = start + i * timeStep | 0;
-                        var t1 = t0 + timeStep;
+                        var t0 = start + i * timeStep;
+
+                        console.log("t0: " + (t0-start|0) );
                         
-                        while(data[prevData].timestamp > t0 && prevData > 0 ) {
-                            prevData--;
+                        while(fieldData[prevData+1].timestamp < t0 && prevData+1 < fieldData.length) {
+                            console.log("moving prev, skip data at timestamp: " + (fieldData[prevData].timestamp - start));
+                            prevData++;
                         }
 
-                        nextData = prevData;
+                        nextData = prevData+1;
 
-                        while(data[nextData].timestamp < t1 && nextData > 0 ) {
-                            prevData--;
+                        while(fieldData[nextData].timestamp < t0 && nextData < fieldData.length) {
+                            console.log("moving next, skip data at timestamp: " + (fieldData[nextData].timestamp - start));
+                            nextData++;
                         }
-
+                        console.log("num: " + i + ", prevData: " + prevData + ", nextData: " + nextData);
+                        console.log("prevData ts: " + (fieldData[prevData].timestamp-start) + ", nextData: " + (fieldData[nextData].timestamp-start));
                         
                     }
 
@@ -276,17 +286,9 @@ router.series = function(req,res) {
 //                    }
 
                 }
-                
-                
-
-
-            
-                    
-
-                
             }
             
-            res.send(res);
+            res.send(series);
         });
     } else {
         res.send("Invalid request");

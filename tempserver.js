@@ -255,8 +255,9 @@ router.series = function(req,res) {
                     series[fieldName] = [];
                     var field = series[fieldName];
 
+                    var currData = 0;
                     var prevData = 0;
-                    var nextData = -1;
+                    var nextData = 0;
 
 
                     for(i = 0; i < num; i++) {
@@ -264,20 +265,35 @@ router.series = function(req,res) {
 
                         console.log("t0: " + (t0-start|0) );
                         
-                        while(fieldData[prevData+1].timestamp < t0 && prevData+1 < fieldData.length) {
-                            console.log("moving prev, skip data at timestamp: " + (fieldData[prevData].timestamp - start));
-                            prevData++;
+                        prevData = currData;
+
+                        while(fieldData[currData+1].timestamp < t0 && currData+1 < fieldData.length) {
+                            if(currData - prevData > 1) {
+                                console.log("moving curr, skip data at timestamp: " + (fieldData[currData].timestamp - start));
+                            }
+                            currData++;
                         }
 
-                        nextData = prevData+1;
+                        if(currData === prevData) {
+                            console.log("same data points, interpolate between currData: " + currData + ", nextData: " + (currData+1));
+                            console.log("t: " + (t0-start) + ", t0: " + (fieldData[currData].timestamp-start) + ", t1: " + (fieldData[currData+1].timestamp - start));
+                        } else {
+                            while(prevData < currData) {
+                                console.log("Interpolate into currData: " + prevData);
+                                prevData++;
+                            }
+                        }
+                        /*
+                        nextData = currData+1;
 
                         while(fieldData[nextData].timestamp < t0 && nextData < fieldData.length) {
                             console.log("moving next, skip data at timestamp: " + (fieldData[nextData].timestamp - start));
                             nextData++;
                         }
+
                         console.log("num: " + i + ", prevData: " + prevData + ", nextData: " + nextData);
                         console.log("prevData ts: " + (fieldData[prevData].timestamp-start) + ", nextData: " + (fieldData[nextData].timestamp-start));
-                        
+                        */
                     }
 
 
@@ -286,6 +302,8 @@ router.series = function(req,res) {
 //                    }
 
                 }
+            } else {
+                series = data;
             }
             
             res.send(series);

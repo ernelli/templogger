@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  display: none;
+}
+
+.line {
+  fill: none;
+  stroke: red;
+  stroke-width: 1.5px;
+}
+
+.VPin {
+  fill: none;
+  stroke: green;
+  stroke-width: 1px;
+}
+
+.VPut {
+  fill: none;
+  stroke: red;
+  stroke-width: 1px;
+}
+
+.vv {
+  fill: none;
+  stroke: blue;
+  stroke-width: 1px;
+}
+
+
+#content {
+    width: 1024px;
+    height: 768px;
+}
+
+</style> 
+    
+<!--<script src="lib/require.js" data-main="tempstat.js"></script> -->
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+  </head>
+  <body>
+    <div id="content">
+    </div>
+  </body>
+  
+
+  <script>
+  function get(url, cb) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", url, true);
+      xhr.onreadystatechange = function() {
+          if(xhr.readyState === 4) {
+              if(xhr.status === 200 || xhr.status === 204) {
+                  cb(false, JSON.parse(xhr.responseText));
+              } else {
+                  cb( { status: xhr.status, text: xhr.responseText } );
+              }
+          }
+      };
+      xhr.send();
+  }
+
+
+  var now = Date.now();
+
+  var start = now - 6*3600*1000;
+  var end = now;
+  
+
+  var url = "/series/" + start + "/" + end;
+
+  get(url, function(err, _data) {
+    
+  //var data = [0,2,4,6,8,10,8,6,4,2,4,6,8,6,4,6,6,6,6];
+
+  var data = [];
+
+  for(var i = 0; i < _data.length; i++) {
+      if(_data[i].Undre) {
+          data.push(_data[i]);
+      }
+
+      if(_data[i].test0) {
+          data[data.length - 1].test0 = _data[i].test0;
+          data[data.length - 1].test1 = _data[i].test1;
+      }
+  }
+  
+  var width = 1024;
+  var height = 256;
+  
+  x = d3.scale.linear().domain([data[0].timestamp, data.slice(-1)[0].timestamp]).range([0, width]),
+  y = d3.scale.linear().domain([0, 60]).range([height,0]);
+
+
+  var visualisation = d3
+//    .select("body")
+    .select("#content")
+    .data([data])
+    .append("svg").attr("width", width).attr("height", height);
+
+  //visualisation[0].setAttribute("id", "graph");
+
+  console.log("visualisation done: ", visualisation[0].id);
+
+  visualisation
+    .append("path")
+    .attr("class", "VPin")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+              return y(d.VPin); 
+          }));
+
+  visualisation
+    .append("path")
+    .attr("class", "VPut")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+              return y(d.VPut); 
+          }));
+
+  visualisation
+    .append("path")
+    .attr("class", "vv")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+              return y(d.test0); 
+          }));
+
+  visualisation
+    .append("path")
+    .attr("class", "vv")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+              return y(d.test1); 
+          }));
+
+  visualisation
+    .append("path")
+    .attr("class", "line")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+              return y(d.Övre); 
+          }));
+
+  visualisation
+    .append("path")
+    .attr("class", "line")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+              return y(d.Undre); 
+          }));
+
+
+  });
+</script>
+</html>

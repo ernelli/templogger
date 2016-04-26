@@ -134,6 +134,13 @@ var now = Date.now();
 var filename = getFileName(Date.now()); //"temp." + currentDate(Date.now()) + ".log";
 var nextDay = nextDate(now);
 
+// add CORS headers
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
+
 app.use(express.static('public'));
 
 //app.use(bodyParser.urlencoded({ extended: true }));
@@ -305,7 +312,9 @@ router.series = function(req,res) {
             } else {
                 series = data;
             }
-            
+         
+     
+   
             res.send(series);
         });
     } else {

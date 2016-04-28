@@ -81,16 +81,68 @@ body {
       xhr.send();
   }
 
+  var search = "" + document.location.search;
+  var urlParams = {};
+
+  if (search.indexOf("?") === 0) {
+      var param, params = search.substring(1);
+      
+      params = params.split("&");
+      
+      for (i = 0; i < params.length; i++) {
+          param = params[i].split("=");
+	  var val = param[1];
+
+	  if(!isNaN(1*val)) {
+	      val = 1*val;
+	  } else if(val === "true") {
+	      val = true;
+	  } else  if(val === "false") {
+	      val = false;
+	  }
+
+          urlParams[param[0]] = val;
+      }
+  }
+
+  console.log("urlParams: ", urlParams);
+
+  // fixup naming
+  params = urlParams;
 
   var now = Date.now();
 
+  function parseTime(val) {
+      var day = 24*3600*1000;
+      var hour = 1000*3600;
+      var minute = 60*1000;
+      var second = 1000;
+      if(typeof val === "string") {
+	  return eval(val);
+      } else if(typeof val === "number") {
+	  if(val < 2*1024*1024*1024) {
+	      val = val *1000;
+	  }
+	  return val;
+      }
+      return val;
+  }
 
-  var delta = 6*3600*1000; // 6*3600*1000
+  var delta = (params.delta ? parseTime(params.delta) : 0) || 6*3600*1000;
+  var start, end;
+  if(params.start) {
+      start = parseTime(params.start);
+      end = start + delta;
+  }  else if(params.end) {
+      end = parseTime(params.end);
+      start = end - delta;
+  } else {
+      end = now; // + 6*3600*1000; 
+      start = end - delta;
+  }
 
-  var start = now - delta;
-  var end = now; // + 6*3600*1000; 
+  console.log("start:" , start, ", end: ", end, ", delta: ", delta);
   
-
   var url = server + "/series/" + start + "/" + end;
 
   get(url, function(err, _data) {
@@ -174,9 +226,9 @@ body {
 
   var vv, panna, varme, axis;
     
-  vv = true;
-  panna = true;
-  varme = true;
+  vv = typeof params.vv !== "undefined" ? params.vv : true;
+  panna = typeof params.panna !== "undefined" ? params.panna : true;
+  varme = typeof params.varme !== "undefined" ? params.varme : true;
 
   axis = true;
 

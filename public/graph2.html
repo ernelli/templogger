@@ -44,7 +44,7 @@ body {
 
 
 #content {
-    width: 1024px;
+    width: 1280px;
     height: 768px;
 }
 
@@ -52,7 +52,7 @@ body {
     
 <!--<script src="lib/require.js" data-main="tempstat.js"></script> -->
 
-<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/d3.v3.js"></script>
 
   </head>
   <body>
@@ -62,12 +62,16 @@ body {
   
 
   <script>
+
+  var server = "http://ernelli.se:10091";
+
   function get(url, cb) {
       var xhr = new XMLHttpRequest();
       xhr.open("GET", url, true);
       xhr.onreadystatechange = function() {
           if(xhr.readyState === 4) {
               if(xhr.status === 200 || xhr.status === 204) {
+                  console.log("got response, size: " + xhr.responseText.length);
                   cb(false, JSON.parse(xhr.responseText));
               } else {
                   cb( { status: xhr.status, text: xhr.responseText } );
@@ -77,14 +81,69 @@ body {
       xhr.send();
   }
 
+  var search = "" + document.location.search;
+  var urlParams = {};
+
+  if (search.indexOf("?") === 0) {
+      var param, params = search.substring(1);
+      
+      params = params.split("&");
+      
+      for (i = 0; i < params.length; i++) {
+          param = params[i].split("=");
+	  var val = param[1];
+
+	  if(!isNaN(1*val)) {
+	      val = 1*val;
+	  } else if(val === "true") {
+	      val = true;
+	  } else  if(val === "false") {
+	      val = false;
+	  }
+
+          urlParams[param[0]] = val;
+      }
+  }
+
+  console.log("urlParams: ", urlParams);
+
+  // fixup naming
+  params = urlParams;
 
   var now = Date.now();
 
-  var start = now - 6*3600*1000;
-  var end = now;
-  
+  function parseTime(val) {
+      var day = 24*3600*1000;
+      var hour = 1000*3600;
+      var minute = 60*1000;
+      var second = 1000;
+      if(typeof val === "string") {
+	  return eval(val);
+      } else if(typeof val === "number") {
+	  if(val < 2*1024*1024*1024) {
+	      val = val *1000;
+	  }
+	  return val;
+      }
+      return val;
+  }
 
-  var url = "/series/" + start + "/" + end;
+  var delta = (params.delta ? parseTime(params.delta) : 0) || 6*3600*1000;
+  var start, end;
+  if(params.start) {
+      start = parseTime(params.start);
+      end = start + delta;
+  }  else if(params.end) {
+      end = parseTime(params.end);
+      start = end - delta;
+  } else {
+      end = now; // + 6*3600*1000; 
+      start = end - delta;
+  }
+
+  console.log("start:" , start, ", end: ", end, ", delta: ", delta);
+  
+  var url = server + "/series/" + start + "/" + end;
 
   get(url, function(err, _data) {
     
@@ -95,6 +154,7 @@ body {
   for(var i = 0; i < _data.length; i++) {
       if(_data[i].Undre) {
           data.push(_data[i]);
+          data[data.length - 1].timestamp = new Date(data[data.length - 1].timestamp);
       }
 
       if(_data[i].test0) {
@@ -102,11 +162,43 @@ body {
           data[data.length - 1].test1 = _data[i].test1;
       }
   }
+
+    
+  for(i = 1; i < _data.length; i++) {
+      
+      for(v in _data[i]) {
+          if(!_data[i-1][v]) {
+              _data[i-1][v] = _data[i][v];
+          }
+      }
+
+      /*
+      if(!_data[i].test0) {
+          var prev = i - 1;
+          while(prev > 0 && !_data[prev].test0) {
+              prev--;
+          }
+          var next = i + 1;
+          while(next < _data.length && !_data[next].test0) {
+              next++;
+          }
+          _data[i].test0 = _data[prev].test0 ? _data[prev].test0 : 0;
+          _data[i].test0 += _data[next].test0 ? _data[next].test0 : 0;
+      }
+      */
+  }
   
-  var width = 1024;
-  var height = 256;
+  var margin = {top: 20, right: 20, bottom: 30, left: 50};
+
+  var fullwidth = 1024;
+  var fullheight = 320;
+
+
+  var width = fullwidth - margin.left - margin.right;
+  var height = fullheight - margin.top - margin.bottom;;
   
-  x = d3.scale.linear().domain([data[0].timestamp, data.slice(-1)[0].timestamp]).range([0, width]),
+  //x = d3.scale.linear().domain([data[0].timestamp, data.slice(-1)[0].timestamp]).range([0, width]),
+  x = d3.time.scale().range([0, width]),
   y = d3.scale.linear().domain([0, 60]).range([height,0]);
 
 
@@ -114,11 +206,64 @@ body {
 //    .select("body")
     .select("#content")
     .data([data])
-    .append("svg").attr("width", width).attr("height", height);
+    .append("svg").attr("width", fullwidth).attr("height", fullheight)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var xAxis = d3.svg.axis()
+          .scale(x)
+          .orient("bottom");
+      
+      var yAxis = d3.svg.axis()
+          .scale(y)
+          .orient("left");
+
+     x.domain(d3.extent(data, function(d) { return d.timestamp; }));
 
   //visualisation[0].setAttribute("id", "graph");
 
   console.log("visualisation done: ", visualisation[0].id);
+
+  var vv, panna, varme, axis;
+    
+  vv = typeof params.vv !== "undefined" ? params.vv : true;
+  panna = typeof params.panna !== "undefined" ? params.panna : true;
+  varme = typeof params.varme !== "undefined" ? params.varme : true;
+
+  axis = true;
+
+      
+
+  if(axis) {
+
+//      vv = false;
+//      panna = false;
+//      varme = false;
+
+
+      visualisation
+          .append("path")
+          .attr("class", "VPin")
+          .attr("d", d3.svg.line()
+                .x(function(d) {
+                    return x(new Date(d.timestamp));
+                })
+                .y(function(d) {
+                    return y(d.VPut - d.VPin); 
+                }));
+
+      visualisation.append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis);
+
+
+      visualisation.append("g")
+          .attr("class", "y axis")
+          .call(yAxis)
+  }
+      
+  if(panna) {
 
   visualisation
     .append("path")
@@ -128,9 +273,9 @@ body {
               return x(d.timestamp);
           })
           .y(function(d) {
-              return y(d.VPin); 
+              return y(d.VPut - d.VPin); 
           }));
-
+/*
   visualisation
     .append("path")
     .attr("class", "VPut")
@@ -141,6 +286,30 @@ body {
           .y(function(d) {
               return y(d.VPut); 
           }));
+*/
+  visualisation
+    .append("path")
+    .attr("class", "line")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+              return y(d.Övre); 
+          }));
+
+  visualisation
+    .append("path")
+    .attr("class", "line")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+              return y(d.Undre); 
+          }));
+  }
+  if(vv) {
 
   visualisation
     .append("path")
@@ -164,29 +333,33 @@ body {
               return y(d.test1); 
           }));
 
+  }
+
+  if(varme) {
+
   visualisation
     .append("path")
-    .attr("class", "line")
+    .attr("class", "vv")
     .attr("d", d3.svg.line()
           .x(function(d) {
               return x(d.timestamp);
           })
           .y(function(d) {
-              return y(d.Övre); 
+              return y(d.Fram); 
           }));
 
   visualisation
     .append("path")
-    .attr("class", "line")
+    .attr("class", "vv")
     .attr("d", d3.svg.line()
           .x(function(d) {
               return x(d.timestamp);
           })
           .y(function(d) {
-              return y(d.Undre); 
+              return y(d.Retur); 
           }));
 
-
+  }
   });
 </script>
 </html>

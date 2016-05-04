@@ -38,21 +38,21 @@ function getFileName(ts) {
 }
 
 function getData(from, to, cb) {
-    var filename = getFileName(from);
 
-    console.log("open: " + filename);
+    var numlines = 0;
+
+    var res = [];
+
+    var alldone = false;
+
+    function startStream(filename) {
 
     var ins = fs.createReadStream(filename);
 
     var last = "";
 
-    var numlines = 0;
 
-    var start = Date.now();
-
-    var res = [];
-
-    var alldone = false;
+    //var start = Date.now();
 
     ins.on('data', function(chunk) {
         var lines, i;
@@ -101,7 +101,13 @@ function getData(from, to, cb) {
     ins.on('end', function() {
         numlines++;
         if(!alldone) {
+            from = nextDate(from);
+            filename = getFileName(from);
+            console.log("next file: " + filename);
             console.log("got data, read next file, total lines processed: " + numlines);
+            //ins.close();
+            startStream(filename);
+            return;
         } else {
             console.log("alldone, res lines: " + res.length);
         }
@@ -109,8 +115,16 @@ function getData(from, to, cb) {
     });
 
     ins.on('error', function(err) {
-        cb(err);
+        console.log("read data, error: " + err + ", dump:" , err);
+        cb(err, res);
     });
+
+    }
+
+
+    var filename = getFileName(from);
+    console.log("open: " + filename);
+    startStream(filename);
     
 }
 
@@ -206,12 +220,16 @@ router.series = function(req,res) {
 
         getData(start, stop, function(err, data) {
            
+            if(data) {
+                console.log("got data, N entries: ", data.length);
+            }
+
             if(err) {
                 res.send(err);
                 return;
             }
             
-            console.log("got data, N entries: ", data.length);
+
             
             if(req.params.num) {
                 var series = {};

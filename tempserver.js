@@ -116,7 +116,11 @@ function getData(from, to, cb) {
 
     ins.on('error', function(err) {
         console.log("read data, error: " + err + ", dump:" , err);
-        cb(err, res);
+        if(err.code === 'ENOENT') {
+            cb(false, res);
+        } else {
+            cb(err);
+        }
     });
 
     }

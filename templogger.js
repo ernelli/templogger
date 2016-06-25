@@ -12,6 +12,14 @@ var argv = process.argv.slice(2);
 for(var i = 0; i < argv.length; i++) {
     if(argv[i] === '-s') {
         config.showSensors = true;
+    } else if(argv[i] === '-r') {
+        resetBus(function(err) {
+            if(err) {
+                process.exit(1);
+            } else {
+                process.exit(0);
+            }
+        });
     }
 }
 
@@ -32,7 +40,7 @@ for(var i = 0; i < config.sensors.length; i++) {
 }
 
 
-function resetBus(err, cb) {
+function resetBus(cb) {
     if(config.vdd) {
         try {
             var value = fs.readFileSync(config.vdd);
@@ -53,8 +61,8 @@ function resetBus(err, cb) {
                 }, 100);
             }
             cb(false);
-        } catch(e) {
-            cb("Failed to read or write vdd pin: " + config.vdd + ", error:" + e);
+        } catch(e2) {
+            cb("Failed to read or write vdd pin: " + config.vdd + ", error:" + e2);
         }
     } else {
         cb("vdd pin not defined, cannot reset w1 bus");

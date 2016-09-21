@@ -13,6 +13,7 @@ for(var i = 0; i < argv.length; i++) {
     if(argv[i] === '-s') {
         config.showSensors = true;
     } else if(argv[i] === '-r') {
+        console.log("do reset bus");
         resetBus(function(err) {
             if(err) {
                 process.exit(1);
@@ -41,26 +42,35 @@ for(var i = 0; i < config.sensors.length; i++) {
 
 
 function resetBus(cb) {
+    console.log("reset bus");
     if(config.vdd) {
+        console.log("vdd present in config");
         try {
-            var value = fs.readFileSync(config.vdd);
-            if(value === "1") { // bus allready low
+            var value = ""+fs.readFileSync(config.vdd);
+            console.log("vdd value: " + value + " " + typeof value + ", length: " + value);
+            if(value !== "1\n") { // bus allready low
+               console.log("vdd already low");
+            } else {
+                console.log("set vdd low");
                 fs.writeFileSync(config.vdd, "0");
+            }
                 setTimeout(function() {
                     try {
+		        console.log("set vdd high");
                         fs.writeFileSync(config.vdd, "1");
+	                console.log("vdd set high, alldone, wait 100ms");
                     } catch(e) {
                         cb("Failed to write vdd pin: " + config.vdd + ", error:" + e);
                         return;
                     }
                     
                     setTimeout(function() {
+                        console.log("wait done, cb");
                         cb(false);
                     }, 100);
 
                 }, 100);
-            }
-            cb(false);
+
         } catch(e2) {
             cb("Failed to read or write vdd pin: " + config.vdd + ", error:" + e2);
         }
@@ -76,7 +86,7 @@ function readSensors(sensors, cb) {
 
     for(i = 0; i < sensors.length; i++) {
         sensor = sensors[i];
-        temp[sensor.label] =  "reading";
+        //temp[sensor.label] =  "reading";
         fs.readFile(sensor.device, (function(err, data) {
             if(err) {
                 //temp[this.label] = "[failed]" + err;

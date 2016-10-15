@@ -86,10 +86,16 @@ function readSensors(sensors, cb) {
                     //temp[this.label] = "[failed]" + err;
                     
                     this.value = undefined;
-                    this.error = this.errors ? this.errors + 1 : 1;
 
                     if(this.status === 'UNDETECTED') {
                         this.status = 'NOT_PRESENT';
+                    } else {
+                        if(this.error) {
+                            this.error++;
+                        } else {
+                            console.err("Failed to read sensor: " + this.label + ", device: " + this.device + ", date: " + new Date());
+                            this.error = 1;
+                        }
                     }
 
                 } else {

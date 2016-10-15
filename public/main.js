@@ -16,7 +16,7 @@ define(["partials"], function(partials) {
       xhr.send();
   }
 
-   get("/current", function(err, data) {
+   get("current", function(err, data) {
        var values = [];
 
        var div = document.getElementById('content');

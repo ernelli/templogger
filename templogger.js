@@ -7,6 +7,23 @@ var config = JSON.parse(fs.readFileSync("./config.json"));
 
 var interval = 10000;
 
+var argv = process.argv.slice(2);
+
+for(var i = 0; i < argv.length; i++) {
+    if(argv[i] === '-s') {
+        config.showSensors = true;
+    } else if(argv[i] === '-r') {
+        console.log("do reset bus");
+        resetBus(function(err) {
+            if(err) {
+                process.exit(1);
+            } else {
+                process.exit(0);
+            }
+        });
+    }
+}
+
 function nextInterval() {
     var now = Date.now();
     var delay = interval - (now % interval);
@@ -20,36 +37,40 @@ var sensors = [];
 var bus_reset = false;
 
 for(var i = 0; i < config.sensors.length; i++) {
-    sensors[i] = { 
-        label: config.sensors[i].label, 
-        device: "/sys/bus/w1/devices/" + config.sensors[i].id + "/w1_slave" ,
-        status: 'UNDETECTED'
-    };
+    sensors[i] = { label: config.sensors[i].label, device: "/sys/bus/w1/devices/" + config.sensors[i].id + "/w1_slave" };
 }
 
 
 function resetBus(cb) {
+    console.log("reset bus");
     if(config.vdd) {
+        console.log("vdd present in config");
         try {
-            var value = fs.readFileSync(config.vdd);
-            if(value === "1") { // bus allready low
+            var value = ""+fs.readFileSync(config.vdd);
+            console.log("vdd value: " + value + " " + typeof value + ", length: " + value);
+            if(value !== "1\n") { // bus allready low
+               console.log("vdd already low");
+            } else {
+                console.log("set vdd low");
                 fs.writeFileSync(config.vdd, "0");
+            }
                 setTimeout(function() {
                     try {
+		        console.log("set vdd high");
                         fs.writeFileSync(config.vdd, "1");
+	                console.log("vdd set high, alldone, wait 100ms");
                     } catch(e) {
                         cb("Failed to write vdd pin: " + config.vdd + ", error:" + e);
                         return;
                     }
                     
                     setTimeout(function() {
-                        bus_reset = true;
+                        console.log("wait done, cb");
                         cb(false);
                     }, 100);
 
                 }, 100);
-            }
-            cb(false);
+
         } catch(e2) {
             cb("Failed to read or write vdd pin: " + config.vdd + ", error:" + e2);
         }
@@ -61,70 +82,52 @@ function resetBus(cb) {
 function readSensors(sensors, cb) {
     var sensor; //, temp = {};
 
-    var i, err, req = 0, res = 0;
+    var i, err, res = 0;
 
     for(i = 0; i < sensors.length; i++) {
-
         sensor = sensors[i];
+        //temp[sensor.label] =  "reading";
+        fs.readFile(sensor.device, (function(err, data) {
+            if(err) {
+                //temp[this.label] = "[failed]" + err;
 
-        if(sensor.status !== 'NOT_PRESENT') {
+                this.value = undefined;
+                this.error = this.errors ? this.errors + 1 : 1;
 
-            temp[sensor.label] =  "reading";
-            
-            req++;
-            
-            fs.readFile(sensor.device, (function(err, data) {
-                if(err) {
-                    //temp[this.label] = "[failed]" + err;
-                    
+            } else {
+                //console.log("got sensor data for: " + this.label + ", value: " + data);
+                var val = /t=([-\d]+)/.exec(data)[1];
+
+                if(bus_reset && 1*val === 85000) {
                     this.value = undefined;
-                    this.error = this.errors ? this.errors + 1 : 1;
-
-                    if(this.status === 'UNDETECTED') {
-                        this.status = 'NOT_PRESENT';
-                    }
-
                 } else {
-                    //console.log("got sensor data for: " + this.label + ", value: " + data);
-                    var val = /t=([-\d]+)/.exec(data)[1];
-
-                    if(bus_reset && 1*val === 85000) {
-                        this.value = undefined;
-                    } else {
-                        this.value = 1*val/1000;
-                    }
-
-                    if(this.status === 'UNDETECTED') {
-                        this.status = 'PRESENT';
-                    }                
-
-                    this.error = 0;
-                    //                temp[this.label] = 1*val/1000;
+                    this.value = 1*val/1000;
                 }
 
-                res++;
-                
-                if(res >= req) {
-                    var temp = {};
+                this.error = 0;
+//                temp[this.label] = 1*val/1000;
+            }
 
-                    for(var i = 0; i < sensors.length; i++) {
-                        if(typeof sensors[i].value !== "undefined") {
-                            temp[sensors[i].label] = sensors[i].value;
-                        }
+            res++;
+            
+            if(res >= sensors.length) {
+                var temp = {};
+
+                for(var i = 0; i < sensors.length; i++) {
+                    if(typeof sensors[i].value !== "undefined") {
+                        temp[sensors[i].label] = sensors[i].value;
                     }
-
-                    reset_bus = false;
-
-                    cb && cb(err, temp);
                 }
-            }).bind(sensor)); 
-        } 
+
+                cb && cb(err, temp);
+            }
+        }).bind(sensor));
     }
 }
 
+if(config.showSensors) {
 
-
-function showSensors() {
+    (function showSensors() {
     console.log("Reading all sensors");
     readSensors(sensors, function(err, values) {
         console.log("timestamp\t" + Date.now());
@@ -133,13 +136,11 @@ function showSensors() {
         }
         setTimeout(showSensors, nextInterval());
     });
-}
-
-
-
+    })();
+} else {
     // start logging process
     
-function startLogging() {
+   (function timerCb() {
         var timestamp = Date.now();
         console.log("read sensors: " + new Date(timestamp));
 
@@ -185,7 +186,7 @@ function startLogging() {
                     console.log("got response: " + body);
                     var delay = nextInterval();
                     console.log("Wait: " + delay + "ms");
-                    setTimeout(startLogging, delay);
+                    setTimeout(timerCb, delay);
                 });
             });
             
@@ -196,36 +197,9 @@ function startLogging() {
                 console.error("failed to send data to logserver: " + url + ", err: " + err);
                 var delay = nextInterval();
                 console.log("Wait: " + delay + "ms");
-                setTimeout(startLogging, delay);
+                setTimeout(timerCb, delay);
             });
         });
 
-    }
-
-
-var argv = process.argv.slice(2);
-
-for(var i = 0; i < argv.length; i++) {
-    if(argv[i] === '-s') {
-        config.showSensors = true;
-    } else if(argv[i] === '-r') {
-        config.resetBus = true;
-    } 
-}
-
-if(config.resetBus) {
-    resetBus(function(err) {
-        if(err) {
-            console.log("reset bus failed: " + err);
-        }
-        readSensors(sensors, function(err, values) {
-            for(var l in values) {
-                console.log(l + "\t"+ values[l]);
-            }
-        });
-    });
-} else if(config.showSensors) {
-    showSensors();
-} else {
-    startLogging();
+    })();
 }

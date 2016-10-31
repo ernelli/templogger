@@ -18,6 +18,8 @@ var logserver = config.logserver;
 var sensors = [];
 
 var bus_reset = false;
+var last_bus_reset = false;
+var log_bus_reset = false;
 
 for(var i = 0; i < config.sensors.length; i++) {
     sensors[i] = { 
@@ -53,6 +55,7 @@ function resetBus(cb) {
                     
                     setTimeout(function() {
                         bus_reset = true;
+			last_bus_reset = Date.now();
                         cb(false);
                     }, 100);
 
@@ -77,7 +80,7 @@ function readSensors(sensors, cb) {
 
         if(sensor.status !== 'NOT_PRESENT') {
 
-            temp[sensor.label] =  "reading";
+            //temp[sensor.label] =  "reading";
             
             req++;
             
@@ -93,7 +96,7 @@ function readSensors(sensors, cb) {
                         if(this.error) {
                             this.error++;
                         } else {
-                            console.err("Failed to read sensor: " + this.label + ", device: " + this.device + ", date: " + new Date());
+                            console.error("Failed to read sensor: " + this.label + ", device: " + this.device + ", date: " + new Date());
                             this.error = 1;
                         }
                     }
@@ -109,6 +112,7 @@ function readSensors(sensors, cb) {
                     }
 
                     if(this.status === 'UNDETECTED') {
+			console.log("Detecting sensor: " + this.label);
                         this.status = 'PRESENT';
                     }                
 
@@ -120,14 +124,22 @@ function readSensors(sensors, cb) {
                 
                 if(res >= req) {
                     var temp = {};
-
+                    var num_failed = 0;
                     for(var i = 0; i < sensors.length; i++) {
                         if(typeof sensors[i].value !== "undefined") {
                             temp[sensors[i].label] = sensors[i].value;
                         }
+
+                        if(sensors[i].error) {
+                          num_failed++;
+                        } 
                     }
 
                     reset_bus = false;
+
+                    if(num_failed) {
+                        err = { num_failed: num_failed };
+                    }
 
                     cb && cb(err, temp);
                 }
@@ -158,7 +170,29 @@ function startLogging() {
         console.log("read sensors: " + new Date(timestamp));
 
         readSensors(sensors, function(err, values) {
+            if(err && err.num_failed) {
+               console.error("Failed to read sensors: " + err.num_failed);
+	       var now = Date.now();
+	       var reset_wait = config.bus_reset_wait_timeout || 600*1000;
+               if(last_bus_reset && (now < last_bus_reset + reset_wait)) {
+                 var wait_delay = last_bus_reset + reset_wait - now;
+                 console.error(""+new Date() + ", w1 bus was reset: " + new Date(last_bus_reset) + ", wait: " + (wait_delay/1000) + "s");
+	         setTimeout(startLogging, wait_delay);
+               } else {
+ 	         resetBus(function(err) {
+	           if(err) {
+                     console.error("Failed to reset bus: " + err);
+                     process.exit(1);
+                   }
 
+                   console.error("w1 bus reset: " + new Date());
+                   log_bus_reset = true;
+                   setTimeout(startLogging, 1);
+
+                 });
+               }
+               return;           
+            }
 
 
             if(values) {
@@ -172,6 +206,11 @@ function startLogging() {
             var data = {
                 timestamp: timestamp
             };
+
+            if(log_bus_reset) {
+              data.bus_reset = true;
+              log_bus_reset = false;
+            }
 
             for(var v in values) {
                 data[v] = values[v];

@@ -42,6 +42,11 @@ body {
   stroke-width: 1px;
 }
 
+.ute {
+  fill: none;
+  stroke: red;
+  stroke-width: 1px;
+}
 
 #content {
     width: 1280px;
@@ -152,7 +157,39 @@ body {
 
   var data = [];
 
+  var ts = _data[0].timestamp;
+
+  var state, prevstate;
+
+  var v;
+
+  var startTime = Date.now();
+
   for(var i = 0; i < _data.length; i++) {
+      if(state) {
+          for(v in _data[i]) {
+              state[v] = _data[i][v];
+              if(typeof state[v] !== 'number') {
+                  debugger;
+              }
+          }
+      } else {
+          state = _data[i];
+      }
+
+      if(_data[i].timestamp - ts >= 10000) {
+          for(v in prevstate) {
+              if(typeof state[v] !== 'number') {
+                  state[v] = prevstate[v];
+              }
+          }
+
+          state.timestamp = new Date(state.timestamp);
+          data.push(state);
+          prevstate = state;
+          state = false;
+      }
+/*
       if(_data[i].Undre) {
           data.push(_data[i]);
           data[data.length - 1].timestamp = new Date(data[data.length - 1].timestamp);
@@ -162,9 +199,15 @@ body {
           data[data.length - 1].test0 = _data[i].test0;
           data[data.length - 1].test1 = _data[i].test1;
       }
+*/
+      //if(_data[i].ute) {
+      //    data[data.length - 1].ute = _data[i].ute;
+      //}
   }
 
-    
+    console.log("data aggregation time: " + (Date.now() - startTime) + "ms");
+
+   /* 
   for(i = 1; i < _data.length; i++) {
       
       for(v in _data[i]) {
@@ -172,7 +215,7 @@ body {
               _data[i-1][v] = _data[i][v];
           }
       }
-
+*/
       /*
       if(!_data[i].test0) {
           var prev = i - 1;
@@ -187,7 +230,7 @@ body {
           _data[i].test0 += _data[next].test0 ? _data[next].test0 : 0;
       }
       */
-  }
+  //}
   
   var margin = {top: 20, right: 20, bottom: 30, left: 50};
 
@@ -361,6 +404,24 @@ body {
           }));
 
   }
+
+  if(typeof prevstate.ute === 'number') {
+  visualisation
+    .append("path")
+    .attr("class", "ute")
+    .attr("d", d3.svg.line()
+          .x(function(d) {
+              return x(d.timestamp);
+          })
+          .y(function(d) {
+//              if(typeof d.ute !== 'number') {
+//                       debugger;
+//              }
+              return y(d.ute); 
+          }));
+  }
+
+
   });
 </script>
 </html>

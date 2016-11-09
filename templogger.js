@@ -7,23 +7,6 @@ var config = JSON.parse(fs.readFileSync("./config.json"));
 
 var interval = 10000;
 
-var argv = process.argv.slice(2);
-
-for(var i = 0; i < argv.length; i++) {
-    if(argv[i] === '-s') {
-        config.showSensors = true;
-    } else if(argv[i] === '-r') {
-        console.log("do reset bus");
-        resetBus(function(err) {
-            if(err) {
-                process.exit(1);
-            } else {
-                process.exit(0);
-            }
-        });
-    }
-}
-
 function nextInterval() {
     var now = Date.now();
     var delay = interval - (now % interval);
@@ -35,9 +18,15 @@ var logserver = config.logserver;
 var sensors = [];
 
 var bus_reset = false;
+var last_bus_reset = false;
+var log_bus_reset = false;
 
 for(var i = 0; i < config.sensors.length; i++) {
-    sensors[i] = { label: config.sensors[i].label, device: "/sys/bus/w1/devices/" + config.sensors[i].id + "/w1_slave" };
+    sensors[i] = { 
+        label: config.sensors[i].label, 
+        device: "/sys/bus/w1/devices/" + config.sensors[i].id + "/w1_slave" ,
+        status: 'UNDETECTED'
+    };
 }
 
 
@@ -65,7 +54,8 @@ function resetBus(cb) {
                     }
                     
                     setTimeout(function() {
-                        console.log("wait done, cb");
+                        bus_reset = true;
+			last_bus_reset = Date.now();
                         cb(false);
                     }, 100);
 
@@ -82,52 +72,85 @@ function resetBus(cb) {
 function readSensors(sensors, cb) {
     var sensor; //, temp = {};
 
-    var i, err, res = 0;
+    var i, err, req = 0, res = 0;
 
     for(i = 0; i < sensors.length; i++) {
+
         sensor = sensors[i];
-        //temp[sensor.label] =  "reading";
-        fs.readFile(sensor.device, (function(err, data) {
-            if(err) {
-                //temp[this.label] = "[failed]" + err;
 
-                this.value = undefined;
-                this.error = this.errors ? this.errors + 1 : 1;
+        if(sensor.status !== 'NOT_PRESENT') {
 
-            } else {
-                //console.log("got sensor data for: " + this.label + ", value: " + data);
-                var val = /t=([-\d]+)/.exec(data)[1];
-
-                if(bus_reset && 1*val === 85000) {
-                    this.value = undefined;
-                } else {
-                    this.value = 1*val/1000;
-                }
-
-                this.error = 0;
-//                temp[this.label] = 1*val/1000;
-            }
-
-            res++;
+            //temp[sensor.label] =  "reading";
             
-            if(res >= sensors.length) {
-                var temp = {};
+            req++;
+            
+            fs.readFile(sensor.device, (function(err, data) {
+                if(err) {
+                    //temp[this.label] = "[failed]" + err;
+                    
+                    this.value = undefined;
 
-                for(var i = 0; i < sensors.length; i++) {
-                    if(typeof sensors[i].value !== "undefined") {
-                        temp[sensors[i].label] = sensors[i].value;
+                    if(this.status === 'UNDETECTED') {
+                        this.status = 'NOT_PRESENT';
+                    } else {
+                        if(this.error) {
+                            this.error++;
+                        } else {
+                            console.error("Failed to read sensor: " + this.label + ", device: " + this.device + ", date: " + new Date());
+                            this.error = 1;
+                        }
                     }
+
+                } else {
+                    //console.log("got sensor data for: " + this.label + ", value: " + data);
+                    var val = /t=([-\d]+)/.exec(data)[1];
+
+                    if(bus_reset && 1*val === 85000) {
+                        this.value = undefined;
+                    } else {
+                        this.value = 1*val/1000;
+                    }
+
+                    if(this.status === 'UNDETECTED') {
+			console.log("Detecting sensor: " + this.label);
+                        this.status = 'PRESENT';
+                    }                
+
+                    this.error = 0;
+                    //                temp[this.label] = 1*val/1000;
                 }
 
-                cb && cb(err, temp);
-            }
-        }).bind(sensor));
+                res++;
+                
+                if(res >= req) {
+                    var temp = {};
+                    var num_failed = 0;
+                    for(var i = 0; i < sensors.length; i++) {
+                        if(typeof sensors[i].value !== "undefined") {
+                            temp[sensors[i].label] = sensors[i].value;
+                        }
+
+                        if(sensors[i].error) {
+                          num_failed++;
+                        } 
+                    }
+
+                    reset_bus = false;
+
+                    if(num_failed) {
+                        err = { num_failed: num_failed };
+                    }
+
+                    cb && cb(err, temp);
+                }
+            }).bind(sensor)); 
+        } 
     }
 }
 
-if(config.showSensors) {
 
-    (function showSensors() {
+
+function showSensors() {
     console.log("Reading all sensors");
     readSensors(sensors, function(err, values) {
         console.log("timestamp\t" + Date.now());
@@ -136,16 +159,40 @@ if(config.showSensors) {
         }
         setTimeout(showSensors, nextInterval());
     });
-    })();
-} else {
+}
+
+
+
     // start logging process
     
-   (function timerCb() {
+function startLogging() {
         var timestamp = Date.now();
         console.log("read sensors: " + new Date(timestamp));
 
         readSensors(sensors, function(err, values) {
+            if(err && err.num_failed) {
+               console.error("Failed to read sensors: " + err.num_failed);
+	       var now = Date.now();
+	       var reset_wait = config.bus_reset_wait_timeout || 600*1000;
+               if(last_bus_reset && (now < last_bus_reset + reset_wait)) {
+                 var wait_delay = last_bus_reset + reset_wait - now;
+                 console.error(""+new Date() + ", w1 bus was reset: " + new Date(last_bus_reset) + ", wait: " + (wait_delay/1000) + "s");
+	         setTimeout(startLogging, wait_delay);
+               } else {
+ 	         resetBus(function(err) {
+	           if(err) {
+                     console.error("Failed to reset bus: " + err);
+                     process.exit(1);
+                   }
 
+                   console.error("w1 bus reset: " + new Date());
+                   log_bus_reset = true;
+                   setTimeout(startLogging, 1);
+
+                 });
+               }
+               return;           
+            }
 
 
             if(values) {
@@ -159,6 +206,11 @@ if(config.showSensors) {
             var data = {
                 timestamp: timestamp
             };
+
+            if(log_bus_reset) {
+              data.bus_reset = true;
+              log_bus_reset = false;
+            }
 
             for(var v in values) {
                 data[v] = values[v];
@@ -186,7 +238,7 @@ if(config.showSensors) {
                     console.log("got response: " + body);
                     var delay = nextInterval();
                     console.log("Wait: " + delay + "ms");
-                    setTimeout(timerCb, delay);
+                    setTimeout(startLogging, delay);
                 });
             });
             
@@ -197,9 +249,36 @@ if(config.showSensors) {
                 console.error("failed to send data to logserver: " + url + ", err: " + err);
                 var delay = nextInterval();
                 console.log("Wait: " + delay + "ms");
-                setTimeout(timerCb, delay);
+                setTimeout(startLogging, delay);
             });
         });
 
-    })();
+    }
+
+
+var argv = process.argv.slice(2);
+
+for(var i = 0; i < argv.length; i++) {
+    if(argv[i] === '-s') {
+        config.showSensors = true;
+    } else if(argv[i] === '-r') {
+        config.resetBus = true;
+    } 
+}
+
+if(config.resetBus) {
+    resetBus(function(err) {
+        if(err) {
+            console.log("reset bus failed: " + err);
+        }
+        readSensors(sensors, function(err, values) {
+            for(var l in values) {
+                console.log(l + "\t"+ values[l]);
+            }
+        });
+    });
+} else if(config.showSensors) {
+    showSensors();
+} else {
+    startLogging();
 }

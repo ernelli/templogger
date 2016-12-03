@@ -273,6 +273,7 @@ body {
   vv = typeof params.vv !== "undefined" ? params.vv : true;
   panna = typeof params.panna !== "undefined" ? params.panna : true;
   varme = typeof params.varme !== "undefined" ? params.varme : true;
+  effekt = typeof params.effekt !== "undefined" ? params.effekt : false;
 
   axis = true;
 
@@ -405,23 +406,37 @@ body {
 
   }
 
-  if(typeof prevstate.ute === 'number') {
-  visualisation
-    .append("path")
-    .attr("class", "ute")
-    .attr("d", d3.svg.line()
-          .x(function(d) {
-              return x(d.timestamp);
-          })
-          .y(function(d) {
-//              if(typeof d.ute !== 'number') {
-//                       debugger;
-//              }
-              return y(d.ute); 
-          }));
+  if(effekt) {
+      visualisation
+          .append("path")
+          .attr("class", "vv")
+          .attr("d", d3.svg.line()
+                .x(function(d) {
+                    return x(d.timestamp);
+                })
+                .y(function(d) {
+                    return y(d.kW); 
+                }));
+      
   }
 
-
+  if(typeof prevstate.ute === 'number') {
+      visualisation
+          .append("path")
+          .attr("class", "ute")
+          .attr("d", d3.svg.line()
+                .x(function(d) {
+                    return x(d.timestamp);
+                })
+                .y(function(d) {
+                    //              if(typeof d.ute !== 'number') {
+                    //                       debugger;
+                    //              }
+                    return y(d.ute); 
+                }));
+  }
+      
+      
   });
 </script>
 </html>

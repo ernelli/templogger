@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+  <link rel="stylesheet" href="style.css"> 
 <style>
 
 body {
@@ -50,7 +51,17 @@ body {
 
 #content {
     width: 1280px;
-    height: 768px;
+    height: 400x;
+}
+
+.focus circle {
+  fill: none;
+  stroke: steelblue;
+}
+
+.overlay {
+  fill: none;
+  pointer-events: all;
 }
 
 </style> 
@@ -63,10 +74,21 @@ body {
   <body>
     <div id="content">
     </div>
+
+    <a class="button" id="prev" href="">Prev</a>&nbsp; <a class="button" id="next" href="">Next</a> <br>
+    <br>
+    <a class="button" id="6h" href="">Span 6h</a>&nbsp; <a class="button" id="3h" href="">Span 3h</a> <br>
+    <br>
+    <div id="plots">
+    </div>
   </body>
   
 
   <script>
+
+  var $ = function(sel, elem) {
+      return document.querySelector(sel, elem ? elem : document);
+  }
 
   //var server = "http://ernelli.se:10091";
   var server = "http://ernelli.se/templogger";
@@ -148,6 +170,13 @@ body {
   }
 
   console.log("start:" , start, ", end: ", end, ", delta: ", delta);
+
+  function sequence(start, delta) {
+      return "?start=" + start + "&delta=" + delta;
+  }
+
+  $('#prev').href = sequence(start - 6*3600*1000, delta);
+  $('#next').href = sequence(start + 6*3600*1000, delta);
   
   var url = server + "/series/" + start + "/" + end;
 
@@ -277,7 +306,19 @@ body {
 
   axis = true;
 
-      
+/*
+  var plots = {
+      "Värme": { value: varme, param: "varme" },
+      "Panna": { value: panna, param: "panna" },
+      "Varmvatten": { value: vv, param: "vv" },
+      "Effekt": { value: vv, effekt, param: "effekt" }
+  };
+
+  var plotsHtml = "";
+  for(i in plots) {
+      plotsHtml += '<a class="button" href=';
+  }
+  */    
 
   if(axis) {
 
@@ -436,7 +477,43 @@ body {
                 }));
   }
       
+
+      var focus = visualisation.append("g")
+          .attr("class", "focus")
+          .style("display", "none");
+      
+      focus.append("circle")
+          .attr("r", 4.5);
+      
+      focus.append("text")
+          .attr("x", 9)
+          .attr("dy", ".35em");
+      
+  function mousemove() {
+      console.log("x: ", d3.mouse(this)[0], ", y: ", d3.mouse(this)[1]);
+/*
+      var x0 = x.invert(d3.mouse(this)[0]);
+      var i = bisectDate(data, x0, 1),
+      var  d0 = data[i - 1],
+      d1 = data[i],
+      d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+      focus.attr("transform", "translate(" + x(d.date) + "," + y(d.close) + ")");
+      focus.select("text").text(formatCurrency(d.close));
+*/
+  }
+
+   visualisation.append("rect")
+          .attr("class", "overlay")
+          .attr("width", width)
+          .attr("height", height)
+          .on("mouseover", function() { focus.style("display", null); })
+          .on("mouseout", function() { focus.style("display", "none"); })
+          .on("mousemove", mousemove);
+      
       
   });
 </script>
+
+
+
 </html>

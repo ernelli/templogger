@@ -49,7 +49,19 @@ body {
   stroke-width: 1px;
 }
 
+.effekt {
+  fill: none;
+  stroke: red;
+  stroke-width: 1px;
+}
+
+
 #content {
+    width: 1280px;
+    height: 400x;
+}
+
+#effekt {
     width: 1280px;
     height: 400x;
 }
@@ -57,6 +69,12 @@ body {
 .focus circle {
   fill: none;
   stroke: steelblue;
+}
+
+.marker {
+  fill: none;
+  stroke: gray;
+  stroke-width: 1px;
 }
 
 .overlay {
@@ -75,7 +93,10 @@ body {
     <div id="content">
     </div>
 
-    <a class="button" id="prev" href="">Prev</a>&nbsp; <a class="button" id="next" href="">Next</a> <br>
+   <div id="effekt">
+    </div>
+
+   <a class="button" id="prev" href="">Prev</a>&nbsp; <a class="button" id="next" href="">Next</a> <br>
     <br>
     <a class="button" id="6h" href="">Span 6h</a>&nbsp; <a class="button" id="3h" href="">Span 3h</a> <br>
     <br>
@@ -90,8 +111,7 @@ body {
       return document.querySelector(sel, elem ? elem : document);
   }
 
-  //var server = "http://ernelli.se:10091";
-  var server = "http://ernelli.se/templogger";
+  var server = "http://" + document.location.host + "/templogger"; 
 
   function get(url, cb) {
       var xhr = new XMLHttpRequest();
@@ -272,10 +292,11 @@ body {
   
   //x = d3.scale.linear().domain([data[0].timestamp, data.slice(-1)[0].timestamp]).range([0, width]),
   x = d3.time.scale().range([0, width]),
-  y = d3.scale.linear().domain([0, 60]).range([height,0]);
+  y = d3.scale.linear().domain([-15, 60]).range([height,0]);
+  y_eff = d3.scale.linear().domain([0, 18]).range([height,0]);
 
 
-  var visualisation = d3
+  var graph = d3
 //    .select("body")
     .select("#content")
     .data([data])
@@ -293,9 +314,48 @@ body {
 
      x.domain(d3.extent(data, function(d) { return d.timestamp; }));
 
-  //visualisation[0].setAttribute("id", "graph");
+  //graph[0].setAttribute("id", "graph");
 
-  console.log("visualisation done: ", visualisation[0].id);
+      var powerGraph = d3
+      //    .select("body")
+          .select("#effekt")
+          .data([data])
+          .append("svg").attr("width", fullwidth).attr("height", fullheight)
+          .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+      
+      var xAxis = d3.svg.axis()
+          .scale(x)
+          .orient("bottom");
+      
+      var yAxisEff = d3.svg.axis()
+          .scale(y_eff)
+          .orient("left");
+
+      powerGraph.append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis);
+
+
+      powerGraph.append("g")
+          .attr("class", "y axis")
+          .call(yAxisEff)
+
+      powerGraph
+          .append("path")
+          .attr("class", "effekt")
+          .attr("d", d3.svg.line()
+                .x(function(d) {
+                    return x(new Date(d.timestamp));
+                })
+                .y(function(d) {
+                    return y_eff(d.kW); 
+                }));
+
+
+
+  console.log("graph done: ", graph[0].id);
 
   var vv, panna, varme, axis;
     
@@ -320,14 +380,14 @@ body {
   }
   */    
 
-  if(axis) {
+
 
 //      vv = false;
 //      panna = false;
 //      varme = false;
 
 
-      visualisation
+      graph
           .append("path")
           .attr("class", "VPin")
           .attr("d", d3.svg.line()
@@ -338,20 +398,20 @@ body {
                     return y(d.VPut - d.VPin); 
                 }));
 
-      visualisation.append("g")
+      graph.append("g")
           .attr("class", "x axis")
           .attr("transform", "translate(0," + height + ")")
           .call(xAxis);
 
 
-      visualisation.append("g")
+      graph.append("g")
           .attr("class", "y axis")
           .call(yAxis)
-  }
+
       
   if(panna) {
 
-  visualisation
+  graph
     .append("path")
     .attr("class", "VPin")
     .attr("d", d3.svg.line()
@@ -362,7 +422,7 @@ body {
               return y(d.VPut - d.VPin); 
           }));
 /*
-  visualisation
+  graph
     .append("path")
     .attr("class", "VPut")
     .attr("d", d3.svg.line()
@@ -373,7 +433,7 @@ body {
               return y(d.VPut); 
           }));
 */
-  visualisation
+  graph
     .append("path")
     .attr("class", "line")
     .attr("d", d3.svg.line()
@@ -384,7 +444,7 @@ body {
               return y(d.Övre); 
           }));
 
-  visualisation
+  graph
     .append("path")
     .attr("class", "line")
     .attr("d", d3.svg.line()
@@ -397,7 +457,7 @@ body {
   }
   if(vv) {
 
-  visualisation
+  graph
     .append("path")
     .attr("class", "vv")
     .attr("d", d3.svg.line()
@@ -408,7 +468,7 @@ body {
               return y(d.test0); 
           }));
 
-  visualisation
+  graph
     .append("path")
     .attr("class", "vv")
     .attr("d", d3.svg.line()
@@ -423,7 +483,7 @@ body {
 
   if(varme) {
 
-  visualisation
+  graph
     .append("path")
     .attr("class", "vv")
     .attr("d", d3.svg.line()
@@ -434,7 +494,7 @@ body {
               return y(d.Fram); 
           }));
 
-  visualisation
+  graph
     .append("path")
     .attr("class", "vv")
     .attr("d", d3.svg.line()
@@ -448,7 +508,7 @@ body {
   }
 
   if(effekt) {
-      visualisation
+      graph
           .append("path")
           .attr("class", "vv")
           .attr("d", d3.svg.line()
@@ -462,7 +522,7 @@ body {
   }
 
   if(typeof prevstate.ute === 'number') {
-      visualisation
+      graph
           .append("path")
           .attr("class", "ute")
           .attr("d", d3.svg.line()
@@ -478,7 +538,7 @@ body {
   }
       
 
-      var focus = visualisation.append("g")
+      var focus = powerGraph.append("g")
           .attr("class", "focus")
           .style("display", "none");
       
@@ -488,25 +548,36 @@ body {
       focus.append("text")
           .attr("x", 9)
           .attr("dy", ".35em");
+
+      var timeMarker = graph.append("g").attr("class", "marker").style("display", null);
+      timeMarker.append("line")
+          .attr("x1", 0)
+          .attr("y1", 0)
+          .attr("x2", 0)
+          .attr("y2", height);
+      
+      var bisectTimestamp = d3.bisector(function(d) { return d.timestamp; }).left
+      var formatValue = d3.format(".3f");
       
   function mousemove() {
-      console.log("x: ", d3.mouse(this)[0], ", y: ", d3.mouse(this)[1]);
-/*
+      //console.log("x: ", d3.mouse(this)[0], ", y: ", d3.mouse(this)[1]);
+
       var x0 = x.invert(d3.mouse(this)[0]);
-      var i = bisectDate(data, x0, 1),
-      var  d0 = data[i - 1],
-      d1 = data[i],
-      d = x0 - d0.date > d1.date - x0 ? d1 : d0;
-      focus.attr("transform", "translate(" + x(d.date) + "," + y(d.close) + ")");
-      focus.select("text").text(formatCurrency(d.close));
-*/
+      console.log("x0: " + x0);
+      var i = bisectTimestamp(data, x0, 1);
+      var  d0 = data[i - 1];
+      var d1 = data[i];
+      d = x0 - d0.timestamp > d1.timestamp - x0 ? d1 : d0;
+      focus.attr("transform", "translate(" + x(d.timestamp) + "," + (y_eff(d.kW) ) + ")");
+      focus.select("text").text(formatValue(d.kW));
+      timeMarker.attr("transform", "translate(" + x(d.timestamp) + ", 0)");
   }
 
-   visualisation.append("rect")
+   powerGraph.append("rect")
           .attr("class", "overlay")
           .attr("width", width)
           .attr("height", height)
-          .on("mouseover", function() { focus.style("display", null); })
+          .on("mouseover", function() { focus.style("display", null); timeMarker.style("display", null); })
           .on("mouseout", function() { focus.style("display", "none"); })
           .on("mousemove", mousemove);
       

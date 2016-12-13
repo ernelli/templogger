@@ -86,8 +86,6 @@ function readSensors(sensors, cb) {
             
             fs.readFile(sensor.device, (function(err, data) {
                 if(err) {
-                    //temp[this.label] = "[failed]" + err;
-                    
                     this.value = undefined;
 
                     if(this.status === 'UNDETECTED') {
@@ -117,7 +115,6 @@ function readSensors(sensors, cb) {
                     }                
 
                     this.error = 0;
-                    //                temp[this.label] = 1*val/1000;
                 }
 
                 res++;
@@ -135,7 +132,7 @@ function readSensors(sensors, cb) {
                         } 
                     }
 
-                    reset_bus = false;
+                    bus_reset = false;
 
                     if(num_failed) {
                         err = { num_failed: num_failed };
@@ -167,7 +164,11 @@ function showSensors() {
     
 function startLogging() {
         var timestamp = Date.now();
-        console.log("read sensors: " + new Date(timestamp));
+        if(bus_reset || log_bus_reset) {
+          console.error("startLogging, bus has been reset at time: " + new Date(last_bus_reset) + ", read sensors at time: " + new Date(timestamp));
+        } else {
+          console.log("read sensors: " + new Date(timestamp));
+        }
 
         readSensors(sensors, function(err, values) {
             if(err && err.num_failed) {
@@ -185,9 +186,9 @@ function startLogging() {
                      process.exit(1);
                    }
 
-                   console.error("w1 bus reset: " + new Date());
+                   console.error("w1 bus has been reset, wait 10s and read sensors: " + new Date());
                    log_bus_reset = true;
-                   setTimeout(startLogging, 1);
+                   setTimeout(startLogging, 10000);
 
                  });
                }

@@ -94,9 +94,12 @@ function readSensors(sensors, cb) {
                         if(this.error) {
                             this.error++;
                         } else {
-                            console.error("Failed to read sensor: " + this.label + ", device: " + this.device + ", date: " + new Date());
                             this.error = 1;
                         }
+
+			if(bus_reset || this.error === 1) {
+                            console.error("Failed to read sensor: " + this.label + ", device: " + this.device + ", date: " + new Date());
+			}
                     }
 
                 } else {
@@ -185,11 +188,13 @@ function startLogging() {
                      console.error("Failed to reset bus: " + err);
                      process.exit(1);
                    }
-
-                   console.error("w1 bus has been reset, wait 10s and read sensors: " + new Date());
-                   log_bus_reset = true;
-                   setTimeout(startLogging, 10000);
-
+     
+		   console.error("w1 bus has been reset, wait 1s and dummy read sensors: " + new Date());
+		     readSensors(sensors, function(err, values) {
+			 console.error("dummy read done, err: ", err, ", timestamp: " +  new Date());
+			 log_bus_reset = true;
+			 setTimeout(startLogging, 1000);
+		     });
                  });
                }
                return;           

@@ -111,8 +111,6 @@ body {
       return document.querySelector(sel, elem ? elem : document);
   }
 
-  var server = "http://" + document.location.host + "/templogger"; 
-
   function get(url, cb) {
       var xhr = new XMLHttpRequest();
       xhr.open("GET", url, true);
@@ -157,6 +155,8 @@ body {
 
   // fixup naming
   params = urlParams;
+
+  var server = "http://" + (params.dataserver ? params.dataserver : document.location.host) + "/templogger"; 
 
   var now = Date.now();
 
@@ -347,7 +347,7 @@ body {
           .attr("class", "effekt")
           .attr("d", d3.svg.line()
                 .x(function(d) {
-                    return x(new Date(d.timestamp));
+                    return x(d.timestamp);
                 })
                 .y(function(d) {
                     return y_eff(d.kW); 
@@ -549,21 +549,39 @@ body {
           .attr("x", 9)
           .attr("dy", ".35em");
 
-      var timeMarker = graph.append("g").attr("class", "marker").style("display", null);
+      var label = graph.append("g")
+          .attr("class", "focus")
+          .style("display", "none");
+      
+      label.append("circle")
+          .attr("r", 4.5);
+      
+      label.append("text")
+          .attr("x", 9)
+          .attr("dy", ".35em");
+
+
+      var timeMarker = graph.append("g").attr("class", "marker").style("display", "none");
       timeMarker.append("line")
           .attr("x1", 0)
           .attr("y1", 0)
           .attr("x2", 0)
-          .attr("y2", height);
+          .attr("y2", height - 20);
+
+      timeMarker.append("text")
+          .attr("x", 0)
+          .attr("y", height-8)
+          .attr("dy", ".35em")
+          .attr("text-anchor", "middle");
       
       var bisectTimestamp = d3.bisector(function(d) { return d.timestamp; }).left
       var formatValue = d3.format(".3f");
+      var formatTime = d3.time.format("%H:%M.%S");
       
   function mousemove() {
       //console.log("x: ", d3.mouse(this)[0], ", y: ", d3.mouse(this)[1]);
 
       var x0 = x.invert(d3.mouse(this)[0]);
-      console.log("x0: " + x0);
       var i = bisectTimestamp(data, x0, 1);
       var  d0 = data[i - 1];
       var d1 = data[i];
@@ -571,7 +589,53 @@ body {
       focus.attr("transform", "translate(" + x(d.timestamp) + "," + (y_eff(d.kW) ) + ")");
       focus.select("text").text(formatValue(d.kW));
       timeMarker.attr("transform", "translate(" + x(d.timestamp) + ", 0)");
+      timeMarker.select("text").text(formatTime(d.timestamp));
   }
+
+  function mousemoveGraph() {
+      //console.log("graph, x: ", d3.mouse(this)[0], ", y: ", d3.mouse(this)[1]);
+
+      var x0 = x.invert(d3.mouse(this)[0]);
+      var y0 = y.invert(d3.mouse(this)[1]);
+      console.log("x0: " + x0 + ", y0: " + y0);
+
+      //console.log("x0: " + x0);
+      var i = bisectTimestamp(data, x0, 1);
+      var  d0 = data[i - 1];
+      var d1 = data[i];
+      d = x0 - d0.timestamp > d1.timestamp - x0 ? d1 : d0;
+
+      //console.log("bisected d: ", d);
+
+      var best;
+      
+      for(v in d) {
+          if(v !== "timestamp") {
+              var diff = Math.abs(d[v] - y0);
+              if(!best || ( diff < best.diff)) {
+                  best = { label: v, value: d[v], diff: diff };
+              }
+          }
+      }
+
+      console.log("Best value: ", best);
+
+      label.attr("transform", "translate(" + x(d.timestamp) + "," + (y(best.value) ) + ")");
+      label.select("text").text(formatValue(best.value));
+      label.style("display", null);
+      
+      //timeMarker.attr("transform", "translate(" + x(d.timestamp) + ", 0)");
+      //timeMarker.select("text").text(formatTime(d.timestamp));
+  }
+
+   graph.append("rect")
+          .attr("class", "overlay")
+          .attr("width", width)
+          .attr("height", height)
+          //.on("mouseover", function() { )
+          //.on("mouseout", function() { focus.style("display", "none"); })
+          .on("mousemove", mousemoveGraph);
+
 
    powerGraph.append("rect")
           .attr("class", "overlay")

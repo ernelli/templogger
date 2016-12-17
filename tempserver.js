@@ -246,10 +246,11 @@ router.series = function(req,res) {
                 if(req.params.fields){
                     fields = req.params.fields.split(",");
                 } else {
+		    fields = [];
                     var added = false;
                     for(i = 0; i < data.length; i++) {
                         for(var f in data[i]) {
-                            if(f !== timestamp) {
+                            if(f !== "timestamp") {
                                 if(fields.indexOf(f) === -1) {
                                     fields.push(f);
                                     added = true;
@@ -332,6 +333,7 @@ router.series = function(req,res) {
 
                 }
             } else {
+		console.log("just serve data");
                 series = data;
             }
          

@@ -214,16 +214,23 @@ body {
 
   var startTime = Date.now();
 
+  var dataMap = { test0: "kv", test1: "vv" };
+
+  state = {};
+          
   for(var i = 0; i < _data.length; i++) {
-      if(state) {
-          for(v in _data[i]) {
+
+      for(v in _data[i]) {
+//          
+          if(v === 'VPin') {
+              // skip VPin
+          } else if(v === 'VPut') {
+              state.vp = _data[i].VPut - _data[i].VPin;
+          } else if(dataMap[v]) {
+              state[dataMap[v]] = _data[i][v];
+          } else {
               state[v] = _data[i][v];
-              if(typeof state[v] !== 'number') {
-                  debugger;
-              }
           }
-      } else {
-          state = _data[i];
       }
 
       if(_data[i].timestamp - ts >= 10000) {
@@ -236,7 +243,7 @@ body {
           state.timestamp = new Date(state.timestamp);
           data.push(state);
           prevstate = state;
-          state = false;
+          state = {};
       }
 /*
       if(_data[i].Undre) {
@@ -387,17 +394,6 @@ body {
 //      varme = false;
 
 
-      graph
-          .append("path")
-          .attr("class", "VPin")
-          .attr("d", d3.svg.line()
-                .x(function(d) {
-                    return x(new Date(d.timestamp));
-                })
-                .y(function(d) {
-                    return y(d.VPut - d.VPin); 
-                }));
-
       graph.append("g")
           .attr("class", "x axis")
           .attr("transform", "translate(0," + height + ")")
@@ -411,7 +407,21 @@ body {
       
   if(panna) {
 
-  graph
+      /*
+      graph
+          .append("path")
+          .attr("class", "VPin")
+          .attr("d", d3.svg.line()
+                .x(function(d) {
+                    return x(d.timestamp);
+                })
+                .y(function(d) {
+                    return y(d.VPut - d.VPin); 
+                }));
+      */
+
+
+      graph
     .append("path")
     .attr("class", "VPin")
     .attr("d", d3.svg.line()
@@ -419,8 +429,10 @@ body {
               return x(d.timestamp);
           })
           .y(function(d) {
-              return y(d.VPut - d.VPin); 
+              return y(d.vp); 
           }));
+
+      
 /*
   graph
     .append("path")
@@ -465,7 +477,7 @@ body {
               return x(d.timestamp);
           })
           .y(function(d) {
-              return y(d.test0); 
+              return y(d.kv); 
           }));
 
   graph
@@ -476,7 +488,7 @@ body {
               return x(d.timestamp);
           })
           .y(function(d) {
-              return y(d.test1); 
+              return y(d.vv); 
           }));
 
   }

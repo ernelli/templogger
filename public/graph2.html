@@ -37,9 +37,15 @@ body {
   stroke-width: 1px;
 }
 
-.vv {
+.varme {
   fill: none;
   stroke: blue;
+  stroke-width: 1px;
+}
+
+.vv {
+  fill: none;
+  stroke: purple;
   stroke-width: 1px;
 }
 
@@ -80,6 +86,42 @@ body {
 .overlay {
   fill: none;
   pointer-events: all;
+}
+
+.color_k {
+    fill: none;
+    stroke: black;
+    stroke-width: 1px;
+}
+
+.color_r {
+    fill: none;
+    stroke: red;
+    stroke-width: 1px;
+}
+
+.color_g {
+    fill: none;
+    stroke: green;
+    stroke-width: 1px;
+}
+
+.color_b {
+    fill: none;
+    stroke: blue;
+    stroke-width: 1px;
+}
+
+.color_m {
+    fill: none;
+    stroke: magenta;
+    stroke-width: 1px;
+}
+
+.color_c {
+    fill: none;
+    stroke: cyan;
+    stroke-width: 1px;
 }
 
 </style> 
@@ -200,6 +242,87 @@ body {
   
   var url = server + "/series/" + start + "/" + end;
 
+
+  function appendDiagram(options, parent) {
+      var margin = options.margin || {top: 20, right: 20, bottom: 30, left: 50};
+
+      var width = parent.offsetWidth;
+      var height = parent.offsetHeight;
+
+      var graphWidth = width - margin.left - margin.right;
+      var graphHeight = height - margin.top - margin.bottom;;
+
+      var xRange = options.xRange || false;
+      var yRange = options.yRange || [0, graphHeight];
+
+      var diagram = d3.select(parent)
+          .append("svg").attr("width", width).attr("height", height)
+          .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var x = xRange ? d3.scale.linear().domain(xRange).range([graphHeight,0]) : d3.time.scale().range([0, graphWidth]);
+      var y = d3.scale.linear().domain(yRange).range([graphHeight,0]);
+
+      var xAxis = d3.svg.axis()
+          .scale(x)
+          .orient("bottom");
+      
+      var yAxis = d3.svg.axis()
+          .scale(y)
+          .orient("left");
+      
+      diagram.append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + graphHeight + ")")
+          .call(xAxis);
+
+      diagram.append("g")
+          .attr("class", "y axis")
+          .call(yAxis);
+
+      diagram.plot = function(valueSelector, fmt, label) {
+          label = label || ""+diagram.plotIndex;
+
+          this.plotIndex++;
+
+/*
+          this.plots[label] =
+              this.append("path")
+              .attr("class", "color_" + fmt)
+              .attr("d", d3.svg.line()
+                    .x(function (d) {
+                        return x(d.timestamp);
+                    })
+                    .y(valueSelector));
+*/
+          this.plots[label] =
+              this.append("path")
+              .attr("class", "color_" + fmt)
+              .attr("d", d3.svg.line()
+                    .x(function (d) {
+                        return x(d.timestamp);
+                    })
+                    .y(function (d) {
+                        return y(d.kW);
+                    }));
+
+      }
+
+      diagram.valueSelector = function (prop) {
+          return function(d) {
+//              console.log("valueSelector: " + d.timestamp, ", val: " + d[prop]);
+              return y(d[prop]);
+          };
+      };
+
+      diagram.plots = {};
+      diagram.plotIndex = 1;
+
+      return diagram;
+  }
+
+
+
   get(url, function(err, _data) {
     
   //var data = [0,2,4,6,8,10,8,6,4,2,4,6,8,6,4,6,6,6,6];
@@ -245,49 +368,11 @@ body {
           prevstate = state;
           state = {};
       }
-/*
-      if(_data[i].Undre) {
-          data.push(_data[i]);
-          data[data.length - 1].timestamp = new Date(data[data.length - 1].timestamp);
-      }
 
-      if(_data[i].test0) {
-          data[data.length - 1].test0 = _data[i].test0;
-          data[data.length - 1].test1 = _data[i].test1;
-      }
-*/
-      //if(_data[i].ute) {
-      //    data[data.length - 1].ute = _data[i].ute;
-      //}
   }
 
-    console.log("data aggregation time: " + (Date.now() - startTime) + "ms");
-
-   /* 
-  for(i = 1; i < _data.length; i++) {
-      
-      for(v in _data[i]) {
-          if(!_data[i-1][v]) {
-              _data[i-1][v] = _data[i][v];
-          }
-      }
-*/
-      /*
-      if(!_data[i].test0) {
-          var prev = i - 1;
-          while(prev > 0 && !_data[prev].test0) {
-              prev--;
-          }
-          var next = i + 1;
-          while(next < _data.length && !_data[next].test0) {
-              next++;
-          }
-          _data[i].test0 = _data[prev].test0 ? _data[prev].test0 : 0;
-          _data[i].test0 += _data[next].test0 ? _data[next].test0 : 0;
-      }
-      */
-  //}
-  
+  console.log("data aggregation time: " + (Date.now() - startTime) + "ms");
+ 
   var margin = {top: 20, right: 20, bottom: 30, left: 50};
 
   var fullwidth = 1024;
@@ -445,6 +530,7 @@ body {
               return y(d.VPut); 
           }));
 */
+
   graph
     .append("path")
     .attr("class", "line")
@@ -497,7 +583,7 @@ body {
 
   graph
     .append("path")
-    .attr("class", "vv")
+    .attr("class", "varme")
     .attr("d", d3.svg.line()
           .x(function(d) {
               return x(d.timestamp);
@@ -508,7 +594,7 @@ body {
 
   graph
     .append("path")
-    .attr("class", "vv")
+    .attr("class", "varme")
     .attr("d", d3.svg.line()
           .x(function(d) {
               return x(d.timestamp);
@@ -657,7 +743,15 @@ body {
           .on("mouseout", function() { focus.style("display", "none"); })
           .on("mousemove", mousemove);
       
-      
+
+/*      
+      var test = appendDiagram({ yRange:[0,18] }, $('#content'));
+      test.data([data]);
+      test.plot(test.valueSelector('kW'), 'b', 'effekt');
+
+      window.test = test;
+      window.graph = graph;
+*/
   });
 </script>
 

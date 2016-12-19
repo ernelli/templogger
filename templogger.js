@@ -189,12 +189,14 @@ function startLogging() {
                      process.exit(1);
                    }
      
-		   console.error("w1 bus has been reset, wait 1s and dummy read sensors: " + new Date());
+		   console.error("w1 bus has been reset, wait 10s and dummy read sensors: " + new Date());
+                   setTimeout(function() {
 		     readSensors(sensors, function(err, values) {
 			 console.error("dummy read done, err: ", err, ", timestamp: " +  new Date());
 			 log_bus_reset = true;
 			 setTimeout(startLogging, 1000);
 		     });
+                   }, 10000);
                  });
                }
                return;           

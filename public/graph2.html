@@ -8,10 +8,43 @@ body {
   font: 10px sans-serif;
 }
 
-.axis path,
-.axis line {
+#content {
+    width: 1280px;
+    height: 400x;
+}
+
+#test {
+    width: 1280px;
+    height: 400x;
+}
+
+div.diagram {
+    float: left;
+    width: 1024px;
+    height: 320px;
+/*    background-color: yellow;    
+     border: 1px solid red; */
+}
+
+
+div.selector {
+    float: left;
+    width: 200px;
+    height: 320px;    
+/*    border: 1px solid red;
+    background-color: lightgray; */
+}
+
+
+#effekt {
+    width: 1280px;
+    height: 400x;
+}
+
+.axis path, .axis line {
   fill: none;
   stroke: #000;
+
   shape-rendering: crispEdges;
 }
 
@@ -62,16 +95,6 @@ body {
 }
 
 
-#content {
-    width: 1280px;
-    height: 400x;
-}
-
-#effekt {
-    width: 1280px;
-    height: 400x;
-}
-
 .focus circle {
   fill: none;
   stroke: steelblue;
@@ -82,6 +105,13 @@ body {
   stroke: gray;
   stroke-width: 1px;
 }
+
+text.marker {
+  fill: black;
+  stroke: none;
+  stroke-width: 1px;
+}
+
 
 .overlay {
   fill: none;
@@ -135,12 +165,23 @@ body {
     <div id="content">
     </div>
 
-   <div id="effekt">
+    <div id="test">
+       <div class="diagram" >
+       </div>
+       <div class="selector">
+       </div>
+   </div>
+
+    <div id="effekt">
     </div>
 
    <a class="button" id="prev" href="">Prev</a>&nbsp; <a class="button" id="next" href="">Next</a> <br>
     <br>
-    <a class="button" id="6h" href="">Span 6h</a>&nbsp; <a class="button" id="3h" href="">Span 3h</a> <br>
+    <a class="button" param="delta" value="6*hour" href="">Span 6h</a> &nbsp;
+    <a class="button" param="delta" value="3*hour" href="">Span 3h</a> &nbsp;
+    <a class="button" param="delta" value="2*hour" href="">Span 2h</a> &nbsp;
+    <a class="button" param="delta" value="1*hour" href="">Span 1h</a> &nbsp;
+    <a class="button" param="delta" value="30*minute" href="">Span 30m</a> <br>
     <br>
     <div id="plots">
     </div>
@@ -152,6 +193,11 @@ body {
   var $ = function(sel, elem) {
       return document.querySelector(sel, elem ? elem : document);
   }
+
+  var $$ = function(sel, elem) {
+      return document.querySelectorAll(sel, elem ? elem : document);
+  }
+
 
   function get(url, cb) {
       var xhr = new XMLHttpRequest();
@@ -237,13 +283,30 @@ body {
       return "?start=" + start + "&delta=" + delta;
   }
 
-  $('#prev').href = sequence(start - 6*3600*1000, delta);
-  $('#next').href = sequence(start + 6*3600*1000, delta);
-  
+
+  function setParam(params, param, value) {
+      console.log("setParam, param: " + param + ", value: " + value);
+
+      var ret = [];
+      for(p in params) {
+	  if(p !== param) {
+	      ret.push( [p, params[p]] );
+	  }
+      }
+      ret.push([param, value]);
+      
+      return ret.reduce(function(a, v, i) { console.log("reduce: ", v); a += (i == 0 ? "" : "&") + v[0] + "=" + v[1]; return a; }, "");
+  }
+
+  $('#prev').href = "?" + setParam(params, "start", "" + (start - delta));
+  $('#next').href = "?" + setParam(params, "start", ""+ (start + delta)); 
+
+  $$('.button[param]').forEach(function(v) { href = "?" + setParam(params, v.getAttribute("param"), v.getAttribute("value")); console.log("set button:" , v, ", href: " + href); v.href = href; });
+
   var url = server + "/series/" + start + "/" + end;
 
 
-  function appendDiagram(options, parent) {
+function appendDiagram(options, parent, data) {
       var margin = options.margin || {top: 20, right: 20, bottom: 30, left: 50};
 
       var width = parent.offsetWidth;
@@ -252,15 +315,17 @@ body {
       var graphWidth = width - margin.left - margin.right;
       var graphHeight = height - margin.top - margin.bottom;;
 
-      var xRange = options.xRange || false;
       var yRange = options.yRange || [0, graphHeight];
 
-      var diagram = d3.select(parent)
+      
+    var diagram = d3.select(parent)
           .append("svg").attr("width", width).attr("height", height)
           .append("g")
           .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-      var x = xRange ? d3.scale.linear().domain(xRange).range([graphHeight,0]) : d3.time.scale().range([0, graphWidth]);
+      diagram.data([data]);
+     
+      var x = d3.time.scale().range([0, graphWidth]).domain([data[0].timestamp, data[data.length-1].timestamp]).nice(10);
       var y = d3.scale.linear().domain(yRange).range([graphHeight,0]);
 
       var xAxis = d3.svg.axis()
@@ -280,32 +345,22 @@ body {
           .attr("class", "y axis")
           .call(yAxis);
 
-      diagram.plot = function(valueSelector, fmt, label) {
+      diagram.addPlot = function(valueSelector, fmt, label) {
           label = label || ""+diagram.plotIndex;
 
-          this.plotIndex++;
-
-/*
-          this.plots[label] =
-              this.append("path")
+	  var plot = this.append("path")
               .attr("class", "color_" + fmt)
               .attr("d", d3.svg.line()
                     .x(function (d) {
                         return x(d.timestamp);
                     })
                     .y(valueSelector));
-*/
-          this.plots[label] =
-              this.append("path")
-              .attr("class", "color_" + fmt)
-              .attr("d", d3.svg.line()
-                    .x(function (d) {
-                        return x(d.timestamp);
-                    })
-                    .y(function (d) {
-                        return y(d.kW);
-                    }));
-
+	  
+          this.plots[label] = {
+	      plot: plot,
+	      value: valueSelector
+	  };
+	  return this.plots[label];
       }
 
       diagram.valueSelector = function (prop) {
@@ -345,11 +400,7 @@ body {
 
       for(v in _data[i]) {
 //          
-          if(v === 'VPin') {
-              // skip VPin
-          } else if(v === 'VPut') {
-              state.vp = _data[i].VPut - _data[i].VPin;
-          } else if(dataMap[v]) {
+	  if(dataMap[v]) {
               state[dataMap[v]] = _data[i][v];
           } else {
               state[v] = _data[i][v];
@@ -363,10 +414,13 @@ body {
               }
           }
 
-          state.timestamp = new Date(state.timestamp);
-          data.push(state);
-          prevstate = state;
-          state = {};
+	  if(state.Undre) {
+              state.timestamp = new Date(state.timestamp);
+	      state.vp = state.VPut - state.VPin;
+              data.push(state);
+              prevstate = state;
+              state = {};
+	  }
       }
 
   }
@@ -660,6 +714,7 @@ body {
 
 
       var timeMarker = graph.append("g").attr("class", "marker").style("display", "none");
+
       timeMarker.append("line")
           .attr("x1", 0)
           .attr("y1", 0)
@@ -667,6 +722,7 @@ body {
           .attr("y2", height - 20);
 
       timeMarker.append("text")
+          .attr("class", "marker")
           .attr("x", 0)
           .attr("y", height-8)
           .attr("dy", ".35em")
@@ -726,14 +782,15 @@ body {
       //timeMarker.select("text").text(formatTime(d.timestamp));
   }
 
-   graph.append("rect")
-          .attr("class", "overlay")
-          .attr("width", width)
-          .attr("height", height)
+      if(params.marker !== false) {
+	  graph.append("rect")
+              .attr("class", "overlay")
+              .attr("width", width)
+              .attr("height", height)
           //.on("mouseover", function() { )
           //.on("mouseout", function() { focus.style("display", "none"); })
-          .on("mousemove", mousemoveGraph);
-
+              .on("mousemove", mousemoveGraph);
+      }
 
    powerGraph.append("rect")
           .attr("class", "overlay")
@@ -744,14 +801,16 @@ body {
           .on("mousemove", mousemove);
       
 
-/*      
-      var test = appendDiagram({ yRange:[0,18] }, $('#content'));
-      test.data([data]);
-      test.plot(test.valueSelector('kW'), 'b', 'effekt');
 
-      window.test = test;
-      window.graph = graph;
-*/
+      if(params.testplot) {
+	  var test = appendDiagram({ yRange:[0,18] }, $('#test .diagram'), data);
+//	  test.data([data]);
+	  test.addPlot(test.valueSelector('kW'), 'b', 'effekt');
+	  test.addPlot(function(d) { return d.VPut - d.VPin; }, 'g', 'VP');
+	  
+	  window.test = test;
+	  window.graph = graph;
+      }
   });
 </script>
 

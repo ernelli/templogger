@@ -165,7 +165,7 @@ text.marker {
     <div id="content">
     </div>
 
-    <div id="test">
+    <div id="test" style="display: none">
        <div class="diagram" >
        </div>
        <div class="selector">
@@ -306,75 +306,169 @@ text.marker {
   var url = server + "/series/" + start + "/" + end;
 
 
+      var bisectTimestamp = d3.bisector(function(d) { return d.timestamp; }).left
+      var formatValue = d3.format(".3f");
+      var formatTime = d3.time.format("%H:%M.%S");
+
+
 function appendDiagram(options, parent, data) {
-      var margin = options.margin || {top: 20, right: 20, bottom: 30, left: 50};
+    var margin = options.margin || {top: 20, right: 20, bottom: 30, left: 50};
+    
+    var width = parent.offsetWidth;
+    var height = parent.offsetHeight;
+    
+    var graphWidth = width - margin.left - margin.right;
+    var graphHeight = height - margin.top - margin.bottom;;
+    
+    var yRange = options.yRange || [0, graphHeight];
+    
+    var diagram = {};
+    
+    diagram.d3 = d3.select(parent)
+        .append("svg").attr("width", width).attr("height", height)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-      var width = parent.offsetWidth;
-      var height = parent.offsetHeight;
+    diagram.d3.data([data]);
+    
+    var x = d3.time.scale().range([0, graphWidth]).domain([data[0].timestamp, data[data.length-1].timestamp]); //.nice(10);
+    var y = d3.scale.linear().domain(yRange).range([graphHeight,0]);
 
-      var graphWidth = width - margin.left - margin.right;
-      var graphHeight = height - margin.top - margin.bottom;;
+    diagram.x = x;
+    diagram.y = y;
 
-      var yRange = options.yRange || [0, graphHeight];
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient("bottom");
+    
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("left");
+    
+    diagram.d3.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + graphHeight + ")")
+        .call(xAxis);
 
-      
-    var diagram = d3.select(parent)
-          .append("svg").attr("width", width).attr("height", height)
-          .append("g")
-          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    diagram.d3.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
 
-      diagram.data([data]);
-     
-      var x = d3.time.scale().range([0, graphWidth]).domain([data[0].timestamp, data[data.length-1].timestamp]).nice(10);
-      var y = d3.scale.linear().domain(yRange).range([graphHeight,0]);
+    diagram.addPlot = function(valueSelector, fmt, label) {
+        label = label || ""+diagram.plotIndex;
 
-      var xAxis = d3.svg.axis()
-          .scale(x)
-          .orient("bottom");
-      
-      var yAxis = d3.svg.axis()
-          .scale(y)
-          .orient("left");
-      
-      diagram.append("g")
-          .attr("class", "x axis")
-          .attr("transform", "translate(0," + graphHeight + ")")
-          .call(xAxis);
+	var plot = this.d3.append("path")
+            .attr("class", "color_" + fmt)
+            .attr("d", d3.svg.line()
+                  .x(function (d) {
+                      return x(d.timestamp);
+                  })
+                  .y(valueSelector));
+	
+        this.plots[label] = {
+	    plot: plot,
+	    value: valueSelector
+	};
+	return this.plots[label];
+    }
 
-      diagram.append("g")
-          .attr("class", "y axis")
-          .call(yAxis);
+    diagram.valueSelector = function (prop) {
+        return function(d) {
+            //              console.log("valueSelector: " + d.timestamp, ", val: " + d[prop]);
+            return y(d[prop]);
+        };
+    };
 
-      diagram.addPlot = function(valueSelector, fmt, label) {
-          label = label || ""+diagram.plotIndex;
+    diagram.plots = {};
+    diagram.plotIndex = 1;
 
-	  var plot = this.append("path")
-              .attr("class", "color_" + fmt)
-              .attr("d", d3.svg.line()
-                    .x(function (d) {
-                        return x(d.timestamp);
-                    })
-                    .y(valueSelector));
-	  
-          this.plots[label] = {
-	      plot: plot,
-	      value: valueSelector
-	  };
-	  return this.plots[label];
-      }
+    var label;
 
-      diagram.valueSelector = function (prop) {
-          return function(d) {
-//              console.log("valueSelector: " + d.timestamp, ", val: " + d[prop]);
-              return y(d[prop]);
-          };
-      };
+    function mousemoveGraph() {
+        var x0 = x.invert(d3.mouse(this)[0]);
+        var y0 = y.invert(d3.mouse(this)[1]);
 
-      diagram.plots = {};
-      diagram.plotIndex = 1;
+        var i = bisectTimestamp(data, x0, 1);
+        var  d0 = data[i - 1];
+        var d1 = data[i];
+        d = x0 - d0.timestamp > d1.timestamp - x0 ? d1 : d0;
+        
+        var best;
+        
+        for(v in diagram.plots) {
+            console.log("Check diff against: " + v + ", value: " + y.invert(diagram.plots[v].value(d)));
+            var diff = Math.abs(y.invert(diagram.plots[v].value(d)) - y0);
+            if(!best || ( diff < best.diff)) {
+                best = { label: v, value: y.invert(diagram.plots[v].value(d)), diff: diff };
+            }
+        }
+        
+        label.attr("transform", "translate(" + x(d.timestamp) + "," + (y(best.value) ) + ")");
+        label.select("text").text(formatValue(best.value));
+        label.style("display", null);
 
-      return diagram;
-  }
+        if(diagram.stat) {
+
+        }
+    }
+    
+    diagram.markers = [];
+
+    
+    if(options.marker) {
+        label = diagram.d3.append("g")
+            .attr("class", "focus")
+            .style("display", "none");
+        
+        label.append("circle")
+            .attr("r", 4.5);
+        
+        label.append("text")
+            .attr("x", 9)
+            .attr("dy", ".35em");
+
+	diagram.d3.append("rect")
+            .attr("class", "overlay")
+            .attr("width", graphWidth)
+            .attr("height",graphHeight)
+            .on("mousemove", mousemoveGraph)
+            .on("click", function() {
+                if(diagram.markers.length < 2) {
+                    
+                    var mx = d3.mouse(this)[0]; 
+                    var ts = x.invert(mx);
+                    var i = bisectTimestamp(data, ts, 1);
+
+                    var marker = diagram.d3.append("g").attr("class", "marker").style("display", null).attr("transform", "translate(" + mx + ", 0)");
+
+                    marker.append("line")
+                        .attr("x1", 0)
+                        .attr("y1", 0)
+                        .attr("x2", 0)
+                        .attr("y2", graphHeight);
+                    marker.append("text")
+                        .attr("class", "marker")
+                        .attr("x", 0)
+                        .attr("y", height-8)
+                        .attr("dy", ".35em")
+                        .attr("text-anchor", "middle");
+
+                    console.log("append marker: ", marker);
+
+                    diagram.markers.push({ marker: marker, index: i });
+                    if(diagram.markers.length === 2) {
+                        diagram.markers.sort(function(a,b) { return a.index - b.index;  });
+                        console.log("m0: " + diagram.markers[0].index);
+                        console.log("m1: " + diagram.markers[1].index);
+                    }
+                } else {
+
+                }
+            });
+    }
+    
+    return diagram;
+}
 
 
 
@@ -417,6 +511,7 @@ function appendDiagram(options, parent, data) {
 	  if(state.Undre) {
               state.timestamp = new Date(state.timestamp);
 	      state.vp = state.VPut - state.VPin;
+              state.dvv = state.vv - state.kv;
               data.push(state);
               prevstate = state;
               state = {};
@@ -609,6 +704,20 @@ function appendDiagram(options, parent, data) {
   }
   if(vv) {
 
+  if(params.dvv) {
+      graph
+          .append("path")
+          .attr("class", "color_g")
+          .attr("d", d3.svg.line()
+                .x(function(d) {
+                    return x(d.timestamp);
+                })
+                .y(function(d) {
+                    return y(d.dvv); 
+                }));
+      
+  }
+
   graph
     .append("path")
     .attr("class", "vv")
@@ -673,6 +782,7 @@ function appendDiagram(options, parent, data) {
       
   }
 
+
   if(typeof prevstate.ute === 'number') {
       graph
           .append("path")
@@ -728,10 +838,7 @@ function appendDiagram(options, parent, data) {
           .attr("dy", ".35em")
           .attr("text-anchor", "middle");
       
-      var bisectTimestamp = d3.bisector(function(d) { return d.timestamp; }).left
-      var formatValue = d3.format(".3f");
-      var formatTime = d3.time.format("%H:%M.%S");
-      
+     
   function mousemove() {
       //console.log("x: ", d3.mouse(this)[0], ", y: ", d3.mouse(this)[1]);
 
@@ -772,7 +879,7 @@ function appendDiagram(options, parent, data) {
           }
       }
 
-      console.log("Best value: ", best);
+      //console.log("Best value: ", best);
 
       label.attr("transform", "translate(" + x(d.timestamp) + "," + (y(best.value) ) + ")");
       label.select("text").text(formatValue(best.value));
@@ -803,13 +910,12 @@ function appendDiagram(options, parent, data) {
 
 
       if(params.testplot) {
-	  var test = appendDiagram({ yRange:[0,18] }, $('#test .diagram'), data);
+          $('#test').style.display = null;
+	  var test = appendDiagram({ yRange:[0,18], marker: true }, $('#test .diagram'), data);
 //	  test.data([data]);
 	  test.addPlot(test.valueSelector('kW'), 'b', 'effekt');
-	  test.addPlot(function(d) { return d.VPut - d.VPin; }, 'g', 'VP');
-	  
-	  window.test = test;
-	  window.graph = graph;
+	  test.addPlot(function(d) { return test.y(d.VPut - d.VPin); }, 'g', 'VP');
+	  test.addPlot(function(d) { return test.y(d.kWh/100); }, 'r', 'kWh');
       }
   });
 </script>

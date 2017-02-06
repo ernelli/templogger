@@ -167,11 +167,13 @@ app.use(bodyParser.json());
 app.post("/store", function(req, res) {
     //console.log("req.ip: " + req.ip);
 
+    /*
     if( (""+req.ip).indexOf("192.168.1.") === -1 &&  (""+req.ip).indexOf(config.allowed) === -1) {
         // silently die
         console.log("ignore request from: " + req.ip);
         return;
     }
+    */
 
     console.log("json: ", req.body);
 	

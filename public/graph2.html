@@ -533,7 +533,7 @@ function appendDiagram(options, parent, data) {
   
   //x = d3.scale.linear().domain([data[0].timestamp, data.slice(-1)[0].timestamp]).range([0, width]),
   x = d3.time.scale().range([0, width]),
-  y = d3.scale.linear().domain([-15, 60]).range([height,0]);
+  y = d3.scale.linear().domain([-15, 70]).range([height,0]);
   y_eff = d3.scale.linear().domain([0, 18]).range([height,0]);
 
 

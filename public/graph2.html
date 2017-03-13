@@ -162,6 +162,7 @@ text.marker {
 
   </head>
   <body>
+    <span id="datum"></span>
     <div id="content">
     </div>
 
@@ -175,13 +176,16 @@ text.marker {
     <div id="effekt">
     </div>
 
-   <a class="button" id="prev" href="">Prev</a>&nbsp; <a class="button" id="next" href="">Next</a> <br>
+    <a class="button" id="prev" href="">Prev</a>&nbsp; <a class="button" id="next" href="">Next</a> <br>
     <br>
     <a class="button" param="delta" value="6*hour" href="">Span 6h</a> &nbsp;
     <a class="button" param="delta" value="3*hour" href="">Span 3h</a> &nbsp;
     <a class="button" param="delta" value="2*hour" href="">Span 2h</a> &nbsp;
     <a class="button" param="delta" value="1*hour" href="">Span 1h</a> &nbsp;
     <a class="button" param="delta" value="30*minute" href="">Span 30m</a> <br>
+    <br>
+    Prev &nbsp; <a class="button" step="-86400000" href="">Day</a>&nbsp; <a class="button" step="-604800000" href="">Week</a> &nbsp; <a class="button" step="-2592000000" href="">Month</a> 
+    Next &nbsp; <a class="button" step="86400000" href="">Day</a>&nbsp; <a class="button" step="604800000" href="">Week</a> &nbsp; <a class="button" step="2592000000" href="">Month</a> 
     <br>
     <div id="plots">
     </div>
@@ -301,7 +305,9 @@ text.marker {
   $('#prev').href = "?" + setParam(params, "start", "" + (start - delta));
   $('#next').href = "?" + setParam(params, "start", ""+ (start + delta)); 
 
-  $$('.button[param]').forEach(function(v) { href = "?" + setParam(params, v.getAttribute("param"), v.getAttribute("value")); console.log("set button:" , v, ", href: " + href); v.href = href; });
+  $$('.button[param]').forEach(function(v) { href = "?" + setParam(params, v.getAttribute("param"), v.getAttribute("value")); v.href = href; });
+
+  $$('.button[step]').forEach(function(v) { var href = "?" + setParam(params, "start", ""+(start + 1*v.getAttribute("step"))); v.href = href; });
 
   var url = server + "/series/" + start + "/" + end;
 
@@ -354,6 +360,14 @@ function appendDiagram(options, parent, data) {
         .attr("class", "y axis")
         .call(yAxis);
 
+/*
+    diagram.d3.append("g")
+        .append("text")
+        .attr("id", "datum")
+        .attr("class", "value")
+        .attr("x", 9)
+        .attr("y", graphHeight-20).text("DATE"); //new Date(data[0].timestamp)
+*/
     diagram.addPlot = function(valueSelector, fmt, label) {
         label = label || ""+diagram.plotIndex;
 
@@ -396,7 +410,7 @@ function appendDiagram(options, parent, data) {
         var best;
         
         for(v in diagram.plots) {
-            console.log("Check diff against: " + v + ", value: " + y.invert(diagram.plots[v].value(d)));
+            //console.log("Check diff against: " + v + ", value: " + y.invert(diagram.plots[v].value(d)));
             var diff = Math.abs(y.invert(diagram.plots[v].value(d)) - y0);
             if(!best || ( diff < best.diff)) {
                 best = { label: v, value: y.invert(diagram.plots[v].value(d)), diff: diff };
@@ -404,7 +418,8 @@ function appendDiagram(options, parent, data) {
         }
         
         label.attr("transform", "translate(" + x(d.timestamp) + "," + (y(best.value) ) + ")");
-        label.select("text").text(formatValue(best.value));
+        label.select("text.value").text(formatValue(best.value));
+        label.select("text.label").text(best.label);
         label.style("display", null);
 
         if(diagram.stat) {
@@ -424,8 +439,14 @@ function appendDiagram(options, parent, data) {
             .attr("r", 4.5);
         
         label.append("text")
+            .attr("class", "value")
             .attr("x", 9)
-            .attr("dy", ".35em");
+            .attr("dy", "-.35em");
+
+        label.append("text")
+            .attr("class", "label")
+            .attr("x", 9)
+            .attr("dy", "1.35em");
 
 	diagram.d3.append("rect")
             .attr("class", "overlay")
@@ -455,11 +476,12 @@ function appendDiagram(options, parent, data) {
 
                     console.log("append marker: ", marker);
 
-                    diagram.markers.push({ marker: marker, index: i });
+                    diagram.markers.push({ marker: marker, index: i, timestamp: ts });
                     if(diagram.markers.length === 2) {
                         diagram.markers.sort(function(a,b) { return a.index - b.index;  });
                         console.log("m0: " + diagram.markers[0].index);
                         console.log("m1: " + diagram.markers[1].index);
+                        console.log("start: " + diagram.markers[0].timestamp.getTime() + ", end: " + diagram.markers[1].timestamp.getTime());
                     }
                 } else {
 
@@ -519,6 +541,8 @@ function appendDiagram(options, parent, data) {
       }
 
   }
+
+  $('#datum').appendChild(document.createTextNode("" + new Date(_data[0].timestamp)));
 
   console.log("data aggregation time: " + (Date.now() - startTime) + "ms");
  
@@ -911,11 +935,21 @@ function appendDiagram(options, parent, data) {
 
       if(params.testplot) {
           $('#test').style.display = null;
-	  var test = appendDiagram({ yRange:[0,18], marker: true }, $('#test .diagram'), data);
+	  var test = appendDiagram({ yRange:[-10, 120], marker: true }, $('#test .diagram'), data);
 //	  test.data([data]);
-	  test.addPlot(test.valueSelector('kW'), 'b', 'effekt');
-	  test.addPlot(function(d) { return test.y(d.VPut - d.VPin); }, 'g', 'VP');
-	  test.addPlot(function(d) { return test.y(d.kWh/100); }, 'r', 'kWh');
+//	  test.addPlot(test.valueSelector('kW'), 'b', 'effekt');
+	  test.addPlot(function(d) { return test.y(d.HG); }, 'r', 'HG');
+	  test.addPlot(function(d) { return test.y(d.KDut); }, 'b', 'KDut');
+	  test.addPlot(function(d) { return test.y(d.Tork); }, 'm', 'Tork');
+
+	  test.addPlot(function(d) { return test.y(d.Fin); }, 'r', 'Fin');
+	  test.addPlot(function(d) { return test.y(d.Fut); }, 'b', 'Fut');
+
+	  test.addPlot(function(d) { return test.y(d.VPin); }, 'g', 'VPin');
+	  test.addPlot(function(d) { return test.y(d.VPut); }, 'g', 'VPut');
+
+//	  test.addPlot(function(d) { return test.y(d.VPut - d.VPin); }, 'g', 'VP');
+//	  test.addPlot(function(d) { return test.y(d.kWh/100); }, 'r', 'kWh');
       }
   });
 </script>

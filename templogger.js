@@ -3,7 +3,65 @@ var fs = require('fs');
 var http = require('http');
 var URL = require('url');
 
+var options = {
+  verbose: false,
+  show: false
+};
+
+
 var config = JSON.parse(fs.readFileSync("./config.json"));
+
+var args = JSON.parse(JSON.stringify(process.argv.slice(2)));
+
+var opts = {
+  "-v": "verbose",
+};
+
+for(var i = 0; i < args.length; i++) {
+    //console.log("check option: " + i + ", remaining args: ", args);
+
+    if(args[i].startsWith("-")) {
+      var opt;
+      if(args[i].startsWith("--") && typeof options[args[i].slice(2)] !== "undefined") {
+	opt = args[i].slice(2);
+      } else {
+	if(opts[args[i]]) {
+	  opt = opts[args[i]];
+	}
+      }
+
+      if(opt) {
+	switch(typeof options[opt]) {
+	case 'boolean':
+	  options[opt] = true;
+	  break;
+
+	case 'number':
+	  options[opt] = 1*args[i+1];
+	  args.splice(i, 1);
+	  break;
+
+	case 'string':
+	  options[opt] = ""+args[i+1];
+	  args.splice(i, 1);
+	  break;
+
+	}
+      } else {
+	console.log("opts: " + process.argv.slice(2));
+	console.error("Unknown option: " + args[0] + ", valid options: ", Object.keys(opts));
+	alldone();
+	process.exit();
+      }
+      args.splice(i--, 1);
+    }
+}
+
+var verbose = options.verbose;
+
+if(verbose) {
+  console.log("options: ", options);
+}
 
 var interval = 10000;
 
@@ -285,8 +343,9 @@ if(config.resetBus) {
             }
         });
     });
-} else if(config.showSensors) {
+} else if(options.show) {
     showSensors();
 } else {
-    startLogging();
+  // default behaviour, start logging with detected sensors
+  startLogging();
 }

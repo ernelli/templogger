@@ -26,6 +26,9 @@ div.diagram {
      border: 1px solid red; */
 }
 
+a.disabled {
+  
+}
 
 div.selector {
     float: left;
@@ -182,7 +185,8 @@ text.marker {
     <a class="button" param="delta" value="3*hour" href="">Span 3h</a> &nbsp;
     <a class="button" param="delta" value="2*hour" href="">Span 2h</a> &nbsp;
     <a class="button" param="delta" value="1*hour" href="">Span 1h</a> &nbsp;
-    <a class="button" param="delta" value="30*minute" href="">Span 30m</a> <br>
+    <a class="button" param="delta" value="30*minute" href="">Span 30m</a>
+    <a class="button" selection disabled=true href="">Selection</a><br>
     <br>
     Prev &nbsp; <a class="button" step="-86400000" href="">Day</a>&nbsp; <a class="button" step="-604800000" href="">Week</a> &nbsp; <a class="button" step="-2592000000" href="">Month</a> 
     Next &nbsp; <a class="button" step="86400000" href="">Day</a>&nbsp; <a class="button" step="604800000" href="">Week</a> &nbsp; <a class="button" step="2592000000" href="">Month</a> 
@@ -302,12 +306,31 @@ text.marker {
       return ret.reduce(function(a, v, i) { console.log("reduce: ", v); a += (i == 0 ? "" : "&") + v[0] + "=" + v[1]; return a; }, "");
   }
 
+  function setParams(params) {
+      console.log("setParam, param: " + param + ", value: " + value);
+
+      var set = Array.prototype.slice.call(arguments).slice(1);
+
+      var ret = [];
+      for(p in params) {
+	  if(p !== param) {
+	      ret.push( [p, params[p]] );
+	  }
+      }
+      ret.push([param, value]);
+      
+      return ret.reduce(function(a, v, i) { console.log("reduce: ", v); a += (i == 0 ? "" : "&") + v[0] + "=" + v[1]; return a; }, "");
+  }
+
+
   $('#prev').href = "?" + setParam(params, "start", "" + (start - delta));
   $('#next').href = "?" + setParam(params, "start", ""+ (start + delta)); 
 
   $$('.button[param]').forEach(function(v) { href = "?" + setParam(params, v.getAttribute("param"), v.getAttribute("value")); v.href = href; });
 
   $$('.button[step]').forEach(function(v) { var href = "?" + setParam(params, "start", ""+(start + 1*v.getAttribute("step"))); v.href = href; });
+
+  //$('.button[selection]').href = "selectionSpan()  forEach(function(v) { var href = "?" + setParam(params, "start", ""+(start + 1*v.getAttribute("step"))); v.href = href; });
 
   var url = server + "/series/" + start + "/" + end;
 
@@ -482,6 +505,9 @@ function appendDiagram(options, parent, data) {
                         console.log("m0: " + diagram.markers[0].index);
                         console.log("m1: " + diagram.markers[1].index);
                         console.log("start: " + diagram.markers[0].timestamp.getTime() + ", end: " + diagram.markers[1].timestamp.getTime());
+                        let start = diagram.markers[0].timestamp.getTime();
+                        let end = diagram.markers[1].timestamp.getTime();
+                        //$('.button[selection]').href = "?" + setParam("start", start) "&delta=" + (end - start);
                     }
                 } else {
 

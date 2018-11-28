@@ -89,38 +89,39 @@ for(var i = 0; i < config.sensors.length; i++) {
 
 
 function resetBus(cb) {
-    console.log("reset bus");
+    console.error(""+new Date() + " reset bus");
     if(config.vdd) {
         console.log("vdd present in config");
         try {
-            var value = ""+fs.readFileSync(config.vdd);
-            console.log("vdd value: " + value + " " + typeof value + ", length: " + value);
-            if(value !== "1\n") { // bus allready low
-               console.log("vdd already low");
+            var value = ""+fs.readFileSync(config.vdd.pin);
+            console.error("vdd value: " + value + " " + typeof value + ", length: " + value);
+            if(value.startsWith(config.vdd.off)) { // bus allready low
+		console.error("vdd already OFF, config.vdd.off: " + config.vdd.off);
             } else {
-                console.log("set vdd low");
-                fs.writeFileSync(config.vdd, "0");
+                console.error("set vdd OFF, config.vdd.off: " + config.vdd.off);
+                fs.writeFileSync(config.vdd.pin, config.vdd.off);
             }
-                setTimeout(function() {
-                    try {
-		        console.log("set vdd high");
-                        fs.writeFileSync(config.vdd, "1");
-	                console.log("vdd set high, alldone, wait 100ms");
-                    } catch(e) {
-                        cb("Failed to write vdd pin: " + config.vdd + ", error:" + e);
-                        return;
-                    }
-                    
-                    setTimeout(function() {
-                        bus_reset = true;
-			last_bus_reset = Date.now();
-                        cb(false);
-                    }, 100);
 
+            setTimeout(function() {
+                try {
+		    console.error("set vdd ON, config.vdd.on: " + config.vdd.on);
+                    fs.writeFileSync(config.vdd.pin, config.vdd.on);
+	            console.error("vdd set high, alldone, wait 100ms");
+                } catch(e) {
+                    cb("Failed to write vdd pin: " + config.vdd.pin + ", error:" + e);
+                    return;
+                }
+                
+                setTimeout(function() {
+                    bus_reset = true;
+		    last_bus_reset = Date.now();
+                    cb(false);
                 }, 100);
+		
+            }, 100);
 
         } catch(e2) {
-            cb("Failed to read or write vdd pin: " + config.vdd + ", error:" + e2);
+            cb("Failed to read or write vdd pin: " + config.vdd.pin + ", error:" + e2);
         }
     } else {
         cb("vdd pin not defined, cannot reset w1 bus");
@@ -171,7 +172,7 @@ function readSensors(sensors, cb) {
                     }
 
                     if(this.status === 'UNDETECTED') {
-			console.log("Detecting sensor: " + this.label);
+			console.error("Detecting sensor: " + this.label);
                         this.status = 'PRESENT';
                     }                
 
@@ -346,6 +347,10 @@ if(config.resetBus) {
 } else if(options.show) {
     showSensors();
 } else {
-  // default behaviour, start logging with detected sensors
-  startLogging();
+  // default behaviour, start logging with detected sensors after bus reset
+    if(config.vdd) {
+	resetBus(startLogging);
+    } else {
+	startLogging();
+    }
 }
